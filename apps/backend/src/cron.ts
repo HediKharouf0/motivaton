@@ -3,10 +3,11 @@ import { getAllChallenges } from "./chain.js";
 import { getAllAccounts, addProgress } from "./store.js";
 import { getGitHubDailyCount } from "./github.js";
 
-function getYesterdayDate(): string {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10); // YYYY-MM-DD
+function getPreviousMinuteRange(): string {
+  const now = new Date();
+  now.setUTCSeconds(0, 0);
+  const start = new Date(now.getTime() - 60_000);
+  return `${start.toISOString().slice(0, 19)}Z..${new Date(start.getTime() + 59_000).toISOString().slice(0, 19)}Z`;
 }
 
 function normalizeAddress(addr: string): string {
@@ -14,8 +15,8 @@ function normalizeAddress(addr: string): string {
 }
 
 async function dailyProgressJob() {
-  const date = getYesterdayDate();
-  console.log(`[cron] Daily progress job for ${date}`);
+  const date = getPreviousMinuteRange();
+  console.log(`[cron] Progress job for ${date}`);
 
   let challenges;
   try {
@@ -92,14 +93,14 @@ async function dailyProgressJob() {
 }
 
 export function startCronJobs() {
-  // Every day at 00:00 UTC
-  cron.schedule("0 0 * * *", () => {
+  // Every minute
+  cron.schedule("* * * * *", () => {
     dailyProgressJob().catch((err) => {
-      console.error("[cron] Daily progress job failed:", err);
+      console.error("[cron] Progress job failed:", err);
     });
   });
 
-  console.log("[cron] Scheduled daily progress job (00:00 UTC)");
+  console.log("[cron] Scheduled progress job (every minute)");
 }
 
 // Export for manual trigger (e.g., testing endpoint)

@@ -28,7 +28,7 @@ function ChallengeCard({ challenge }: { challenge: IndexedChallenge }) {
   });
 
   return (
-    <Link to={`/challenge/${challenge.index}`} className="challenge-card surface">
+    <Link to={`/challenge/${challenge.index}`} state={{ challenge }} className="challenge-card surface">
       <div className="challenge-card-top">
         <div>
           <div className="challenge-card-app-row">
