@@ -95,31 +95,25 @@ export function Home() {
   const myChallenges = userAddress
     ? challenges.filter((c) => c.sponsor === userAddress || c.beneficiary === userAddress)
     : [];
-  const myIds = new Set(myChallenges.map((c) => c.index));
-  const browseChallenges = challenges.filter((c) => !myIds.has(c.index));
 
   return (
     <div className="page">
       <header className="surface surface-accent hero-panel">
         <div className="hero-row">
           <div>
-            <div className="eyebrow">Telegram mini app</div>
             <h1 className="page-title">Make the promise cost something.</h1>
           </div>
           <div className="tonconnect-slot">
             <TonConnectButton />
           </div>
         </div>
-        <p className="hero-copy">
-          Create small accountability escrows on TON. Sponsors lock the stake, beneficiaries unlock it checkpoint by checkpoint.
-        </p>
-        <div className="button-row" style={{ marginTop: "1.1rem" }}>
-          <Link to="/create" className="button-primary">
+        <div className="button-row hero-actions" style={{ marginTop: "1.1rem" }}>
+          <p className="hero-copy">
+            Create small accountability escrows on TON. Sponsors lock the stake, beneficiaries unlock it checkpoint by checkpoint.
+          </p>
+          <Link to="/create" className="button-primary hero-cta">
             Create challenge
           </Link>
-          <span className="inline-note">
-            {userAddress ? "Wallet connected" : "Connect a wallet to see your role-specific list"}
-          </span>
         </div>
       </header>
 
@@ -137,50 +131,40 @@ export function Home() {
         </div>
       )}
 
-      {userAddress && (
-        <section className="detail-stack">
-          <div className="section-header">
-            <div>
-              <h2 className="section-title">Your challenges</h2>
-              <p className="section-note">Escrows where you are sponsor or beneficiary.</p>
-            </div>
-            <span className="inline-note">{myChallenges.length} visible</span>
+      <section className="detail-stack">
+        <div className="section-header">
+          <div>
+            <h2 className="section-title">Your challenges</h2>
+            <p className="section-note">
+              Only challenges where the connected wallet is the sponsor or beneficiary are shown here.
+            </p>
           </div>
-          {loading && <div className="loading-card">Loading your challenges...</div>}
-          {!loading && myChallenges.length === 0 && (
-            <div className="empty-state">
-              <strong>No challenges yet</strong>
-              <p>Create the first one and the list will populate here.</p>
-            </div>
+          {userAddress && (
+            <span className="inline-note" title={`${myChallenges.length} challenges`} aria-label={`${myChallenges.length} challenges`}>
+              {myChallenges.length}
+            </span>
           )}
+        </div>
+        {!userAddress && (
+          <div className="empty-state">
+            <strong>Connect your wallet</strong>
+            <p>Challenge lists are now private to the connected participant view.</p>
+          </div>
+        )}
+        {userAddress && loading && <div className="loading-card">Loading your challenges...</div>}
+        {userAddress && !loading && myChallenges.length === 0 && (
+          <div className="empty-state">
+            <strong>No challenges yet</strong>
+            <p>Create the first one and the list will populate here.</p>
+          </div>
+        )}
+        {userAddress && (
           <div className="list-stack">
             {myChallenges.map((c) => (
               <ChallengeCard key={c.index} challenge={c} />
             ))}
           </div>
-        </section>
-      )}
-
-      <section className="detail-stack">
-        <div className="section-header">
-          <div>
-            <h2 className="section-title">Browse challenges</h2>
-            <p className="section-note">Open escrows currently visible on-chain.</p>
-          </div>
-          <span className="inline-note">{browseChallenges.length} available</span>
-        </div>
-        {loading && <div className="loading-card">Loading challenges...</div>}
-        {!loading && browseChallenges.length === 0 && (
-          <div className="empty-state">
-            <strong>No public challenges to browse</strong>
-            <p>Once new escrows are created, they will appear here.</p>
-          </div>
         )}
-        <div className="list-stack">
-          {browseChallenges.map((c) => (
-            <ChallengeCard key={c.index} challenge={c} />
-          ))}
-        </div>
       </section>
     </div>
   );

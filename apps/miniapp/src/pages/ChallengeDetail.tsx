@@ -147,34 +147,36 @@ export function ChallengeDetail() {
     }
   }
 
-  if (loading) {
+  function renderFallbackState(kind: "loading" | "error" | "empty", title: string, message: string) {
+    const boxClassName =
+      kind === "loading" ? "loading-card" : kind === "error" ? "error-banner" : "empty-state";
+
     return (
       <div className="page">
-        <div className="loading-card">Loading challenge...</div>
+        <button type="button" className="top-link" onClick={() => navigate("/")}>
+          Back to challenges
+        </button>
+        <div className={boxClassName}>
+          <strong>{title}</strong>
+          <p>{message}</p>
+        </div>
+        <button type="button" className="button-secondary button-full" onClick={() => navigate("/")}>
+          Go back
+        </button>
       </div>
     );
+  }
+
+  if (loading) {
+    return renderFallbackState("loading", "Loading challenge", "Fetching on-chain challenge data...");
   }
 
   if (error && !challenge) {
-    return (
-      <div className="page">
-        <div className="error-banner">
-          <strong>Could not load challenge</strong>
-          <p>{error}</p>
-        </div>
-      </div>
-    );
+    return renderFallbackState("error", "Could not load challenge", error);
   }
 
   if (!challenge) {
-    return (
-      <div className="page">
-        <div className="empty-state">
-          <strong>Challenge not found</strong>
-          <p>The contract did not return a challenge for this index.</p>
-        </div>
-      </div>
-    );
+    return renderFallbackState("empty", "Challenge not found", "The contract did not return a challenge for this index.");
   }
 
   const { app: appKey, action } = parseChallengeId(challenge.challengeId);
@@ -212,7 +214,7 @@ export function ChallengeDetail() {
         </div>
         <div className="info-chip-row">
           <span className="inline-note">{challenge.challengeId}</span>
-          <span className="inline-note">Deadline {new Date(challenge.endDate * 1000).toLocaleDateString()}</span>
+          <span className="inline-note">{new Date(challenge.endDate * 1000).toLocaleDateString()}</span>
         </div>
       </header>
 
@@ -247,7 +249,7 @@ export function ChallengeDetail() {
             <h2 className="section-title">Checkpoint board</h2>
             <p className="section-note">Each green tile is already unlocked and claimed.</p>
           </div>
-          <span className="inline-note">{progressPct}% complete</span>
+          <span className="inline-note">{progressPct}%</span>
         </div>
         <div className="progress-track">
           <div className="progress-fill" style={{ width: `${progressPct}%` }} />

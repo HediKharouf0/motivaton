@@ -103,3 +103,20 @@ Key files:
 
 Follow-up gaps:
 - The UI is improved, but some review-reported contract and verification correctness issues still need implementation fixes outside this design pass.
+
+### 2026-03-21 - Miniapp Mobile-First Layout Pass
+
+Summary:
+- Reworked the miniapp layout defaults to be mobile-first instead of desktop-like rows compressed onto small screens.
+- Stacked headers, action rows, summary rows, challenge cards, and detail sections vertically by default, then reintroduced denser multi-column layouts only at larger breakpoints.
+- Improved touch ergonomics by making primary controls full-width on small screens and increasing safe-area-aware page padding.
+
+Why it matters now:
+- The miniapp now behaves more naturally in the Telegram mobile context, which is the primary usage environment for the product.
+- Future UI work can assume the base layout is designed for phones first, then expanded for larger viewports.
+
+Key files:
+- `apps/miniapp/src/index.css`
+
+Follow-up gaps:
+- The responsive foundation is better, but it should still be checked on real Telegram mobile devices to validate spacing, keyboard behavior, and TonConnect interactions.
