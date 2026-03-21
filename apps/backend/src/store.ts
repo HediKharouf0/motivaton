@@ -42,6 +42,12 @@ function getDb(): Database.Database {
     );
   `);
 
+  // Migration: add count column if missing (table created before this column existed)
+  const cols = db.prepare("PRAGMA table_info(challenge_events)").all() as { name: string }[];
+  if (!cols.some((c) => c.name === "count")) {
+    db.exec("ALTER TABLE challenge_events ADD COLUMN count INTEGER NOT NULL DEFAULT 1");
+  }
+
   return db;
 }
 
