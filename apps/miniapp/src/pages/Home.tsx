@@ -2,21 +2,22 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { TonConnectButton, useTonAddress } from "@tonconnect/ui-react";
 import { getAllChallenges, normalizeAddress, type OnChainChallenge } from "../contract";
+import { backendApi } from "../api";
 import { APP_LABELS, formatActionLabel, parseChallengeId } from "../types/challenge";
 
 type IndexedChallenge = OnChainChallenge & { index: number };
 
-function ChallengeCard({ challenge }: { challenge: IndexedChallenge }) {
+function ChallengeCard({ challenge, progress }: { challenge: IndexedChallenge; progress: number }) {
   const { app: appKey, action, count } = parseChallengeId(challenge.challengeId);
   const appLabel = APP_LABELS[appKey as keyof typeof APP_LABELS] ?? appKey;
   const actionLabel = formatActionLabel(action);
   const progressPct = Math.min(
     100,
-    Math.round((challenge.claimedCount / challenge.totalCheckpoints) * 100),
+    Math.round((progress / challenge.totalCheckpoints) * 100),
   );
   const expired = Date.now() / 1000 > challenge.endDate;
   const status = !challenge.active
-    ? challenge.claimedCount >= challenge.totalCheckpoints
+    ? progress >= challenge.totalCheckpoints
       ? "completed"
       : "closed"
     : expired
@@ -49,7 +50,7 @@ function ChallengeCard({ challenge }: { challenge: IndexedChallenge }) {
         <div className="challenge-meta-item">
           <span className="challenge-meta-label">Progress</span>
           <span className="challenge-meta-value">
-            {challenge.claimedCount}/{challenge.totalCheckpoints}
+            {progress}/{challenge.totalCheckpoints}
           </span>
         </div>
         <div className="challenge-meta-item">
@@ -79,6 +80,7 @@ function ChallengeCard({ challenge }: { challenge: IndexedChallenge }) {
 export function Home() {
   const userAddress = useTonAddress();
   const [challenges, setChallenges] = useState<IndexedChallenge[]>([]);
+  const [progressMap, setProgressMap] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const hasContractAddress = Boolean(import.meta.env.VITE_CONTRACT_ADDRESS);
@@ -90,8 +92,12 @@ export function Home() {
     setLoading(true);
     setError("");
     try {
-      const nextChallenges = await getAllChallenges();
+      const [nextChallenges, allProgress] = await Promise.all([
+        getAllChallenges(),
+        backendApi.getAllProgress().catch(() => ({})),
+      ]);
       setChallenges(nextChallenges);
+      setProgressMap(allProgress);
     } catch (e: any) {
       console.error("Failed to load challenges:", e);
       setError(e.message);
@@ -213,7 +219,7 @@ export function Home() {
         {userAddress && (
           <div className="list-stack challenge-list">
             {myChallenges.map((c) => (
-              <ChallengeCard key={c.index} challenge={c} />
+              <ChallengeCard key={c.index} challenge={c} progress={progressMap[String(c.index)] || 0} />
             ))}
           </div>
         )}
@@ -265,7 +271,7 @@ export function Home() {
         {!loading && browseChallenges.length > 0 && (
           <div className="list-stack challenge-list">
             {browseChallenges.map((c) => (
-              <ChallengeCard key={c.index} challenge={c} />
+              <ChallengeCard key={c.index} challenge={c} progress={progressMap[String(c.index)] || 0} />
             ))}
           </div>
         )}

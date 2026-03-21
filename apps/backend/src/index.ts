@@ -14,11 +14,17 @@ import cors from "cors";
 import { verifyRouter } from "./routes/verify.js";
 import { authRouter } from "./routes/auth.js";
 import { webhookRouter } from "./routes/webhook.js";
-import { startCronJobs, progressJob } from "./cron.js";
-import { addProgress, getProgress } from "./store.js";
+import { debugRouter } from "./routes/debug.js";
+import { startCronJobs } from "./cron.js";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001", 10);
+
+// Log every request
+app.use((req, _res, next) => {
+  console.log(`[req] ${req.method} ${req.path}`);
+  next();
+});
 
 app.use(cors());
 
@@ -29,33 +35,7 @@ app.use(express.json());
 
 app.use("/api/verify", verifyRouter);
 app.use("/api/auth", authRouter);
-
-// Manual cron trigger for testing
-app.post("/api/cron/trigger", async (_req, res) => {
-  try {
-    await progressJob();
-    res.json({ ok: true });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// DEBUG: increment progress for a challenge
-app.post("/api/debug/progress/:challengeIdx", (req, res) => {
-  const challengeIdx = parseInt(req.params.challengeIdx, 10);
-  if (isNaN(challengeIdx)) {
-    res.status(400).json({ error: "Invalid challengeIdx" });
-    return;
-  }
-  addProgress(challengeIdx, 1);
-  const current = getProgress(challengeIdx);
-  console.log(`[debug] Challenge #${challengeIdx} progress: ${current}`);
-  res.json({ challengeIdx, progress: current });
-});
-
-app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok" });
-});
+app.use("/api", debugRouter);
 
 // Serve frontend static files in production (skip /api paths)
 const frontendDist = resolve(import.meta.dirname, "../../miniapp/dist");

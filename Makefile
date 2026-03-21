@@ -1,4 +1,4 @@
-.PHONY: install build build-contracts build-miniapp dev dev-backend dev-miniapp deploy typecheck clean
+.PHONY: install build build-contracts build-miniapp build-backend dev dev-backend dev-miniapp deploy typecheck clean
 
 # Install all dependencies
 install:
@@ -23,9 +23,14 @@ dev-backend:
 dev-miniapp:
 	pnpm --filter motivaton-miniapp dev
 
+# Build the backend TypeScript to dist/
+build-backend:
+	pnpm --filter motivaton-backend build
+
 # Run both backend and miniapp in parallel
-dev:
-	@./scripts/dev.sh
+dev: build-backend
+	@echo "Starting backend and miniapp..."
+	@pnpm --filter motivaton-backend dev & pnpm --filter motivaton-miniapp dev
 
 # Deploy the ProductivityEscrow contract to TON testnet
 # Required env vars:

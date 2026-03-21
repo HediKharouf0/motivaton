@@ -66,6 +66,7 @@ export function ChallengeDetail() {
   const [duolingoInput, setDuolingoInput] = useState("");
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [backendProgress, setBackendProgress] = useState<number>(0);
 
   useEffect(() => {
     setLoading(prefetchedChallenge === null);
@@ -122,16 +123,20 @@ export function ChallengeDetail() {
         ? backendApi.getAuthStatus(userAddress).catch(() => null)
         : Promise.resolve(null);
 
-      const [claimed, creatorStake, currentUserStake, auth] = await Promise.all([
+      const progressPromise = backendApi.getProgress(idx).catch(() => ({ challengeIdx: idx, progress: 0 }));
+
+      const [claimed, creatorStake, currentUserStake, auth, prog] = await Promise.all([
         claimedPromise,
         creatorContributionPromise,
         userContributionPromise,
         authStatusPromise,
+        progressPromise,
       ]);
 
       setClaimedMap(claimed);
       setCreatorContribution(creatorStake);
       setUserContribution(userAddress ? currentUserStake : null);
+      setBackendProgress(prog.progress);
       setAuthStatus(auth);
     } catch (e: any) {
       setError(e.message);
@@ -326,9 +331,9 @@ export function ChallengeDetail() {
   const appLabel = APP_LABELS[appKey as keyof typeof APP_LABELS] ?? appKey;
   const actionLabel = formatActionLabel(action);
   const expired = Date.now() / 1000 > challenge.endDate;
-  const progressPct = Math.min(100, Math.round((challenge.claimedCount / challenge.totalCheckpoints) * 100));
+  const progressPct = Math.min(100, Math.round((backendProgress / challenge.totalCheckpoints) * 100));
   const status = !challenge.active
-    ? challenge.claimedCount >= challenge.totalCheckpoints
+    ? backendProgress >= challenge.totalCheckpoints
       ? "completed"
       : "closed"
     : expired
@@ -377,7 +382,7 @@ export function ChallengeDetail() {
       <section className="stats-grid">
         <div className="stat-tile surface">
           <span className="stat-label">Progress</span>
-          <div className="stat-value">{challenge.claimedCount} / {challenge.totalCheckpoints}</div>
+          <div className="stat-value">{backendProgress} / {challenge.totalCheckpoints}</div>
           <p className="section-note">{progressPct}% of checkpoints unlocked</p>
         </div>
         <div className="stat-tile surface">

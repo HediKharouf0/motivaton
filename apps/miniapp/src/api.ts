@@ -88,4 +88,12 @@ export const backendApi = {
       body: JSON.stringify({ walletAddress }),
     });
   },
+
+  getProgress(challengeIdx: number) {
+    return request<{ challengeIdx: number; progress: number }>(`/progress/${challengeIdx}`);
+  },
+
+  getAllProgress() {
+    return request<Record<string, number>>("/progress");
+  },
 };
