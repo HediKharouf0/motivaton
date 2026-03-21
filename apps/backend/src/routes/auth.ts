@@ -8,8 +8,8 @@ export const authRouter = Router();
 const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || "";
 const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || "";
 
-// Pending OAuth flows: state -> { wallet, expiry }
-const pendingOAuth = new Map<string, { wallet: string; expiry: number }>();
+// Pending OAuth flows: state -> { wallet, returnPath, expiry }
+const pendingOAuth = new Map<string, { wallet: string; returnPath: string; expiry: number }>();
 
 // Cleanup expired entries every 5 minutes
 setInterval(() => {
@@ -25,7 +25,7 @@ setInterval(() => {
  * Returns: { url } — the GitHub OAuth URL to redirect the user to.
  */
 authRouter.post("/github/start", (req, res) => {
-  const { walletAddress } = req.body;
+  const { walletAddress, returnPath } = req.body;
 
   if (!walletAddress) {
     res.status(400).json({ error: "walletAddress is required." });
@@ -38,7 +38,7 @@ authRouter.post("/github/start", (req, res) => {
   }
 
   const state = randomBytes(16).toString("hex");
-  pendingOAuth.set(state, { wallet: walletAddress, expiry: Date.now() + 10 * 60 * 1000 });
+  pendingOAuth.set(state, { wallet: walletAddress, returnPath: returnPath || "/", expiry: Date.now() + 10 * 60 * 1000 });
 
   const params = new URLSearchParams({
     client_id: GITHUB_CLIENT_ID,
@@ -100,13 +100,9 @@ authRouter.get("/github/callback", async (req, res) => {
 
   console.log(`[auth] Linked GitHub @${username} to wallet ${pending.wallet.slice(0, 12)}...`);
 
-  // Redirect back to miniapp
-  res.send(`
-    <html><body>
-      <p>GitHub connected as <strong>@${username}</strong>. You can close this window.</p>
-      <script>if (window.opener) window.close();</script>
-    </body></html>
-  `);
+  // Redirect back to the miniapp page the user came from
+  const returnUrl = `${process.env.PUBLIC_URL || ""}${pending.returnPath}`;
+  res.redirect(returnUrl);
 });
 
 /**

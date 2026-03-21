@@ -194,24 +194,10 @@ export function ChallengeDetail() {
     try {
       switch (oauthAppKey) {
         case "github": {
-          const { url } = await backendApi.startGitHubOAuth(userAddress);
-          const popup = window.open(url, "oauth", "width=600,height=700");
-
-          if (!popup) {
-            throw new Error("Popup blocked. Allow popups and try again.");
-          }
-
-          await new Promise<void>((resolve) => {
-            const interval = setInterval(() => {
-              if (popup.closed) {
-                clearInterval(interval);
-                resolve();
-              }
-            }, 500);
-          });
-          const auth = await backendApi.getAuthStatus(userAddress);
-          setAuthStatus(auth);
-          break;
+          const { url } = await backendApi.startGitHubOAuth(userAddress, idx);
+          // Redirect in the same window — callback will redirect back
+          window.location.href = url;
+          return;
         }
       }
     } catch (e: any) {

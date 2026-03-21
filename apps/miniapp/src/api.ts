@@ -74,10 +74,11 @@ export const backendApi = {
     return request<AuthStatus>(`/auth/status?wallet=${encodeURIComponent(walletAddress)}`);
   },
 
-  startGitHubOAuth(walletAddress: string) {
+  startGitHubOAuth(walletAddress: string, challengeIdx?: number) {
+    const returnPath = challengeIdx != null ? `/challenge/${challengeIdx}` : "/";
     return request<{ url: string }>("/auth/github/start", {
       method: "POST",
-      body: JSON.stringify({ walletAddress }),
+      body: JSON.stringify({ walletAddress, returnPath }),
     });
   },
 
