@@ -87,19 +87,7 @@ async function eventsProgressJob() {
       continue;
     }
 
-    const pushEvents = allEvents.filter((e) => e.type === "PushEvent");
-    console.log(`[cron] @${username}: ${allEvents.length} total events, ${pushEvents.length} PushEvents`);
-    if (pushEvents.length > 0) {
-      const raw = pushEvents[0] as any;
-      const commits = raw.payload?.commits;
-      console.log(`[cron]   PushEvent payload keys: ${JSON.stringify(Object.keys(raw.payload || {}))}`);
-      console.log(`[cron]   commits type=${typeof commits} isArray=${Array.isArray(commits)} length=${commits?.length}`);
-      if (Array.isArray(commits) && commits.length > 0) {
-        console.log(`[cron]   commit[0] keys: ${JSON.stringify(Object.keys(commits[0]))}`);
-        console.log(`[cron]   commit[0]: ${JSON.stringify(commits[0])}`);
-      }
-      console.log(`[cron]   Full payload: ${JSON.stringify(raw.payload).slice(0, 500)}`);
-    }
+    console.log(`[cron] @${username}: ${allEvents.length} total events`);
 
     // Process each challenge for this user
     const userChallenges = activeChallenges.filter((c) => {
@@ -111,17 +99,19 @@ async function eventsProgressJob() {
       const action = c.challengeId.split(":")[1];
       const since = new Date(c.createdAt * 1000);
       const eventsByAction = extractEvents(allEvents, since);
-      const ids = eventsByAction[action] ?? [];
+      const entries = eventsByAction[action] ?? [];
 
+      const totalFound = entries.reduce((sum, e) => sum + e.count, 0);
       const prevProgress = getChallengeProgress(c.index);
-      const newIds = addChallengeEvents(c.index, ids);
+      const newEntries = addChallengeEvents(c.index, entries);
+      const totalNew = newEntries.reduce((sum, e) => sum + e.count, 0);
       const newProgress = getChallengeProgress(c.index);
 
       console.log(
         `[cron]   Challenge #${c.index} (${c.challengeId}): ` +
-        `since=${since.toISOString()} found ${ids.length} ${action}s, ${newIds.length} new → ` +
+        `since=${since.toISOString()} found ${totalFound} ${action}s (${entries.length} events), ${totalNew} new → ` +
         `progress ${prevProgress} -> ${newProgress}/${c.totalCheckpoints}` +
-        (newIds.length > 0 ? ` [${newIds.join(", ")}]` : ""),
+        (newEntries.length > 0 ? ` [${newEntries.map((e) => `${e.id}(${e.count})`).join(", ")}]` : ""),
       );
     }
   }

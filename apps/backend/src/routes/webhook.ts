@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import { createHmac, timingSafeEqual } from "crypto";
 import { Address } from "@ton/core";
 import { getAllChallenges } from "../chain.js";
-import { getAllAccounts, addChallengeEvents } from "../store.js";
+import { getAllAccounts, addChallengeEvents, type EventEntry } from "../store.js";
 
 export const webhookRouter = Router();
 
@@ -43,35 +43,39 @@ webhookRouter.post("/github", express.raw({ type: "application/json" }), async (
   }
 
   let action: string | null = null;
-  let eventIds: string[] = [];
+  let entries: EventEntry[] = [];
 
   switch (eventType) {
-    case "push":
+    case "push": {
       action = "COMMIT";
-      eventIds = (event.commits || []).map((c: { id: string }) => c.id);
+      const commits = event.commits as { id: string }[] | undefined;
+      const count = commits?.length || 1;
+      const id = event.head_commit?.id || event.after || String(Date.now());
+      entries = [{ id, count }];
       break;
+    }
     case "issues":
       if (event.action === "opened") {
         action = "OPEN_ISSUE";
-        eventIds = [String(event.issue?.id)];
+        entries = [{ id: String(event.issue?.id), count: 1 }];
       }
       break;
     case "pull_request":
       if (event.action === "opened") {
         action = "CREATE_PR";
-        eventIds = [String(event.pull_request?.id)];
+        entries = [{ id: String(event.pull_request?.id), count: 1 }];
       } else if (event.action === "closed" && event.pull_request?.merged) {
         action = "MERGE_PR";
-        eventIds = [String(event.pull_request?.id)];
+        entries = [{ id: String(event.pull_request?.id), count: 1 }];
       }
       break;
     case "pull_request_review":
       action = "REVIEW";
-      eventIds = [String(event.review?.id)];
+      entries = [{ id: String(event.review?.id), count: 1 }];
       break;
   }
 
-  if (!action || eventIds.length === 0) {
+  if (!action || entries.length === 0) {
     res.json({ ok: true, skipped: "irrelevant event" });
     return;
   }
@@ -107,12 +111,14 @@ webhookRouter.post("/github", express.raw({ type: "application/json" }), async (
     if (parts.length < 3 || parts[0] !== "GITHUB" || parts[1] !== action) continue;
     if (normalizeAddress(c.beneficiary) !== normWallet) continue;
 
-    const newIds = addChallengeEvents(c.index, eventIds);
-    if (newIds.length > 0) {
+    const newEntries = addChallengeEvents(c.index, entries);
+    const totalNew = newEntries.reduce((sum, e) => sum + e.count, 0);
+    if (totalNew > 0) {
       updated++;
-      console.log(`[webhook] Challenge #${c.index}: +${newIds.length} ${action} by @${sender}`);
+      console.log(`[webhook] Challenge #${c.index}: +${totalNew} ${action} by @${sender}`);
     }
   }
 
-  res.json({ ok: true, processed: eventIds.length, challengesUpdated: updated });
+  const totalCount = entries.reduce((sum, e) => sum + e.count, 0);
+  res.json({ ok: true, processed: totalCount, challengesUpdated: updated });
 });
