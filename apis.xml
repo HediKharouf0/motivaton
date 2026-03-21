@@ -1,0 +1,475 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<apis_guide>
+
+  <github_api_guide>
+    <goal>Track when the linked GitHub user pushes commits to selected repositories, especially inside a chosen organization</goal>
+
+    <supported_approach>
+      <summary>Use GitHub OAuth to authenticate the user, let them choose repositories, then install a repository webhook on each selected repository and subscribe to push events</summary>
+      <why>This gives a user-approved access token and real-time notifications for repository activity</why>
+    </supported_approach>
+
+    <authentication>
+      <type>GitHub OAuth App</type>
+      <note>OAuth app tokens act on behalf of the signed-in user</note>
+      <authorization_url>https://github.com/login/oauth/authorize</authorization_url>
+      <token_url>https://github.com/login/oauth/access_token</token_url>
+      <recommended_scopes>
+        <scope>read:user</scope>
+        <scope>read:org</scope>
+        <scope>admin:repo_hook</scope>
+      </recommended_scopes>
+      <optional_scope_for_private_repo_access>
+        <scope>repo</scope>
+      </optional_scope_for_private_repo_access>
+      <important_rule>Scopes only limit access. They do not grant access beyond what the user already has.</important_rule>
+      <access_token_header>Authorization: Bearer USER_ACCESS_TOKEN</access_token_header>
+      <accept_header>Accept: application/vnd.github+json</accept_header>
+      <api_version_header>X-GitHub-Api-Version: 2026-03-10</api_version_header>
+    </authentication>
+
+    <capabilities>
+      <capability>Authenticate a user with GitHub OAuth</capability>
+      <capability>Read the authenticated user's organizations and repositories they can access</capability>
+      <capability>Let the user choose repositories to monitor</capability>
+      <capability>Create one webhook per selected repository</capability>
+      <capability>Receive push events in real time</capability>
+      <capability>Filter push events by the linked GitHub username</capability>
+      <capability>Count commits and store metadata for challenge validation</capability>
+    </capabilities>
+
+    <flow>
+      <step number="1">Send the user through GitHub OAuth</step>
+      <step number="2">Store the returned access token and linked GitHub username</step>
+      <step number="3">List repositories for the target organization</step>
+      <step number="4">Let the user choose which repositories to monitor</step>
+      <step number="5">Create a webhook on each selected repository</step>
+      <step number="6">Subscribe to the push event</step>
+      <step number="7">Receive webhook POST requests on your backend</step>
+      <step number="8">Filter events where payload.sender.login equals the linked GitHub username</step>
+      <step number="9">Increment counters or save commit metadata for challenge verification</step>
+    </flow>
+
+    <oauth_requests>
+      <start_authorization>
+        <url>GET https://github.com/login/oauth/authorize</url>
+        <query_parameters>
+          <client_id>YOUR_CLIENT_ID</client_id>
+          <redirect_uri>YOUR_REDIRECT_URI</redirect_uri>
+          <scope>read:user read:org admin:repo_hook</scope>
+          <state>CSRF_RANDOM_VALUE</state>
+        </query_parameters>
+      </start_authorization>
+
+      <exchange_code_for_token>
+        <url>POST https://github.com/login/oauth/access_token</url>
+        <headers>
+          <header>Accept: application/json</header>
+        </headers>
+        <body_fields>
+          <client_id>YOUR_CLIENT_ID</client_id>
+          <client_secret>YOUR_CLIENT_SECRET</client_secret>
+          <code>CODE_FROM_CALLBACK</code>
+          <redirect_uri>YOUR_REDIRECT_URI</redirect_uri>
+          <state>CSRF_RANDOM_VALUE</state>
+        </body_fields>
+      </exchange_code_for_token>
+
+      <get_authenticated_user>
+        <url>GET https://api.github.com/user</url>
+        <purpose>Resolve the linked GitHub username for later webhook filtering</purpose>
+      </get_authenticated_user>
+    </oauth_requests>
+
+    <repository_discovery>
+      <goal>List repositories the signed-in user can monitor inside an organization</goal>
+
+      <endpoint name="list organization repositories">
+        <url>GET https://api.github.com/orgs/{org}/repos</url>
+        <example>GET https://api.github.com/orgs/github/repos</example>
+        <returns>Repositories in the organization visible to the authenticated user</returns>
+      </endpoint>
+
+      <endpoint name="list user organizations">
+        <url>GET https://api.github.com/user/orgs</url>
+        <example>GET https://api.github.com/user/orgs</example>
+        <returns>Organizations the authenticated user belongs to</returns>
+      </endpoint>
+
+      <selection_rule>Only create webhooks on repositories the user selected and for which their token has enough access</selection_rule>
+    </repository_discovery>
+
+    <webhooks>
+      <strategy>Create a repository webhook on each selected repository</strategy>
+      <why>Repository webhooks give real-time push notifications and are better than polling for monitored repositories</why>
+
+      <create_webhook_endpoint>
+        <url>POST https://api.github.com/repos/{owner}/{repo}/hooks</url>
+        <purpose>Create a webhook on a repository</purpose>
+      </create_webhook_endpoint>
+
+      <request_example><![CDATA[
+const octokit = new Octokit({
+  auth: 'USER_ACCESS_TOKEN'
+});
+
+await octokit.request('POST /repos/{owner}/{repo}/hooks', {
+  owner: 'OWNER',
+  repo: 'REPO',
+  name: 'web',
+  active: true,
+  events: ['push'],
+  config: {
+    url: 'https://your-app.example.com/webhooks/github',
+    content_type: 'json',
+    secret: 'YOUR_WEBHOOK_SECRET',
+    insecure_ssl: '0'
+  },
+  headers: {
+    'X-GitHub-Api-Version': '2026-03-10'
+  }
+});
+      ]]></request_example>
+
+      <request_body_schema>
+        <name>web</name>
+        <active>true</active>
+        <events>
+          <event>push</event>
+        </events>
+        <config>
+          <url>https://your-app.example.com/webhooks/github</url>
+          <content_type>json</content_type>
+          <secret>YOUR_WEBHOOK_SECRET</secret>
+          <insecure_ssl>0</insecure_ssl>
+        </config>
+      </request_body_schema>
+
+      <response_schema><![CDATA[
+{
+  "id": 123456789,
+  "type": "Repository",
+  "name": "web",
+  "active": true,
+  "events": ["push"],
+  "config": {
+    "url": "https://your-app.example.com/webhooks/github",
+    "content_type": "json",
+    "secret": "********",
+    "insecure_ssl": "0"
+  },
+  "updated_at": "2026-03-21T10:00:00Z",
+  "created_at": "2026-03-21T10:00:00Z",
+  "url": "https://api.github.com/repos/OWNER/REPO/hooks/123456789",
+  "test_url": "https://api.github.com/repos/OWNER/REPO/hooks/123456789/tests",
+  "ping_url": "https://api.github.com/repos/OWNER/REPO/hooks/123456789/pings",
+  "deliveries_url": "https://api.github.com/repos/OWNER/REPO/hooks/123456789/deliveries",
+  "last_response": {
+    "code": null,
+    "status": null,
+    "message": null
+  }
+}
+      ]]></response_schema>
+
+      <webhook_handler_requirements>
+        <requirement>Accept POST requests at your configured payload URL</requirement>
+        <requirement>Verify the signature using the webhook secret</requirement>
+        <requirement>Check the X-GitHub-Event header</requirement>
+        <requirement>Only process push events</requirement>
+        <requirement>Parse sender, repository, ref, commits, and timestamps</requirement>
+      </webhook_handler_requirements>
+
+      <webhook_filtering>
+        <primary_rule>payload.sender.login == linked_github_username</primary_rule>
+        <secondary_rule_optional>Optionally also inspect payload.commits[*].author.username for stricter attribution</secondary_rule_optional>
+        <repo_match_rule>payload.repository.full_name must be one of the repositories selected by the user</repo_match_rule>
+      </webhook_filtering>
+
+      <push_payload_fields_to_extract>
+        <field>sender.login</field>
+        <field>repository.full_name</field>
+        <field>repository.name</field>
+        <field>repository.owner.login</field>
+        <field>ref</field>
+        <field>head_commit.id</field>
+        <field>head_commit.timestamp</field>
+        <field>commits</field>
+        <field>commits[*].id</field>
+        <field>commits[*].message</field>
+        <field>commits[*].timestamp</field>
+        <field>commits[*].author.name</field>
+        <field>commits[*].author.username</field>
+      </push_payload_fields_to_extract>
+    </webhooks>
+
+    <api_calls>
+      <needed>Yes</needed>
+      <use_cases>
+        <case>Fetch authenticated user profile after OAuth</case>
+        <case>List organizations for the signed-in user</case>
+        <case>List repositories in a selected organization</case>
+        <case>Create repository webhooks</case>
+        <case>Optionally list existing hooks before creating a new one</case>
+      </use_cases>
+
+      <endpoint name="get authenticated user">
+        <url>GET https://api.github.com/user</url>
+        <purpose>Get the linked GitHub username</purpose>
+      </endpoint>
+
+      <endpoint name="list user organizations">
+        <url>GET https://api.github.com/user/orgs</url>
+        <purpose>Show organizations available to the user</purpose>
+      </endpoint>
+
+      <endpoint name="list organization repositories">
+        <url>GET https://api.github.com/orgs/{org}/repos</url>
+        <purpose>Show repositories that can be selected for monitoring</purpose>
+      </endpoint>
+
+      <endpoint name="list repository webhooks">
+        <url>GET https://api.github.com/repos/{owner}/{repo}/hooks</url>
+        <purpose>Check if a webhook already exists before creating another one</purpose>
+      </endpoint>
+
+      <endpoint name="create repository webhook">
+        <url>POST https://api.github.com/repos/{owner}/{repo}/hooks</url>
+        <purpose>Install the webhook on the selected repository</purpose>
+      </endpoint>
+    </api_calls>
+
+    <polling>
+      <needed>No for selected repositories with installed webhooks</needed>
+      <note>If you rely on repository webhooks, polling is not the primary strategy</note>
+      <fallback>Polling can still be used for recovery, audits, or missed-delivery backfill</fallback>
+    </polling>
+
+    <javascript_instructions>
+      <goal_for_llm>Generate JavaScript code that performs GitHub OAuth, stores the user token and username, lists org repositories, creates repository webhooks, receives push events, verifies signatures, filters pushes by linked username, and returns normalized commit events</goal_for_llm>
+      <preferred_runtime>Node.js with fetch or Octokit</preferred_runtime>
+
+      <required_capabilities>
+        <item>Build the OAuth redirect URL</item>
+        <item>Exchange the OAuth code for a user access token</item>
+        <item>Call GET /user to resolve the GitHub login</item>
+        <item>Call GET /user/orgs to list organizations</item>
+        <item>Call GET /orgs/{org}/repos to list repositories</item>
+        <item>Call GET /repos/{owner}/{repo}/hooks to detect existing hooks</item>
+        <item>Call POST /repos/{owner}/{repo}/hooks to install a webhook</item>
+        <item>Verify X-Hub-Signature-256 using the configured webhook secret</item>
+        <item>Process only push events</item>
+        <item>Filter with payload.sender.login == linked_github_username</item>
+        <item>Return normalized commit records for storage or challenge checking</item>
+      </required_capabilities>
+
+      <normalized_output_example>
+        <field name="source">github</field>
+        <field name="action">commit</field>
+        <field name="username">octocat</field>
+        <field name="repo">OWNER/REPO</field>
+        <field name="owner">OWNER</field>
+        <field name="branch">refs/heads/main</field>
+        <field name="count">2</field>
+        <field name="commit_ids">["abc123","def456"]</field>
+        <field name="timestamp">2026-03-21T10:00:00Z</field>
+      </normalized_output_example>
+
+      <recommended_files>
+        <file>githubOAuth.ts</file>
+        <file>githubApi.ts</file>
+        <file>githubWebhookHandler.ts</file>
+        <file>githubVerifier.ts</file>
+      </recommended_files>
+    </javascript_instructions>
+  </github_api_guide>
+
+  <leetcode_api_guide>
+    <goal>Track solved challenges, their difficulty, and when you solved them</goal>
+
+    <important_note>LeetCode has no official public API. Everything goes through their GraphQL endpoint and most useful data requires your session cookie (authentication).</important_note>
+
+    <authentication>
+      <type>Session cookie authentication</type>
+      <how>Log into leetcode.com, open DevTools, go to Application, then Cookies, and copy LEETCODE_SESSION</how>
+      <header>Cookie: LEETCODE_SESSION=your_session_value; csrftoken=your_csrf_token</header>
+      <warning>Session cookies expire and must be refreshed periodically</warning>
+      <security_note>Treat session cookies like secrets and never expose them to the client</security_note>
+    </authentication>
+
+    <endpoint>
+      <url>POST https://leetcode.com/graphql</url>
+      <content_type>application/json</content_type>
+    </endpoint>
+
+    <capabilities>
+      <capability>Read recent accepted submissions</capability>
+      <capability>Track solved problem count by difficulty</capability>
+      <capability>Read submission timestamps</capability>
+      <capability>Read detailed submission history with pagination</capability>
+      <capability>Detect newly solved problems by polling</capability>
+    </capabilities>
+
+    <queries>
+
+      <query name="recent accepted submissions">
+        <purpose>Get recent accepted submissions with timestamp</purpose>
+        <body><![CDATA[
+{
+  "query": "query recentAcSubmissions($username: String!, $limit: Int!) { recentAcSubmissionList(username: $username, limit: $limit) { id title titleSlug timestamp } }",
+  "variables": { "username": "your_username", "limit": 20 }
+}
+        ]]></body>
+        <returns>Last accepted submissions with Unix timestamp of when they were solved</returns>
+        <limit>Public, no auth needed, but capped at 20 results</limit>
+        <use_case>Best for polling every few minutes to detect new solves</use_case>
+      </query>
+
+      <query name="all solved problems with difficulty">
+        <purpose>Get solved count by Easy, Medium, and Hard</purpose>
+        <body><![CDATA[
+{
+  "query": "query userSolvedProblems($username: String!) { allQuestionsCount { difficulty count } matchedUser(username: $username) { submitStatsGlobal { acSubmissionNum { difficulty count } } problemsSolvedBeatsStats { difficulty percentage } } }",
+  "variables": { "username": "your_username" }
+}
+        ]]></body>
+        <returns>Count of solved Easy, Medium, and Hard problems</returns>
+        <auth_required>true</auth_required>
+      </query>
+
+      <query name="submission details with difficulty">
+        <purpose>Get full submission history, status, language, timestamp, and difficulty</purpose>
+        <body><![CDATA[
+{
+  "query": "query submissionList($offset: Int!, $limit: Int!, $lastKey: String) { submissionList(offset: $offset, limit: $limit, lastKey: $lastKey) { lastKey hasNext submissions { id title status timestamp lang question { difficulty } } } }",
+  "variables": { "offset": 0, "limit": 20, "lastKey": null }
+}
+        ]]></body>
+        <returns>Full submission history with difficulty, language, status, and Unix timestamp</returns>
+        <pagination>Paginate using lastKey from the response</pagination>
+        <auth_required>true</auth_required>
+      </query>
+
+    </queries>
+
+    <timestamp>
+      <format>Unix epoch in seconds</format>
+      <convert>new Date(timestamp * 1000).toISOString()</convert>
+    </timestamp>
+
+    <polling>
+      <needed>Yes</needed>
+      <note>No webhooks exist, so you must poll</note>
+      <tip>Poll the recent accepted submissions query every few minutes to detect new solves</tip>
+      <rate_limit>Be conservative because aggressive polling may be throttled or blocked</rate_limit>
+      <recommended_strategy>Use recent accepted submissions for lightweight checks, then use authenticated queries only when deeper verification is needed</recommended_strategy>
+    </polling>
+
+    <webhooks>
+      <needed>No</needed>
+      <note>No webhook support exists for this integration path</note>
+    </webhooks>
+
+    <api_calls>
+      <needed>Yes</needed>
+      <use_cases>
+        <case>Get recent accepted submissions</case>
+        <case>Get solved counts by difficulty</case>
+        <case>Get full submission history</case>
+        <case>Detect new solves since the last poll</case>
+        <case>Verify if a challenge threshold has been reached</case>
+      </use_cases>
+
+      <endpoint name="graphql endpoint">
+        <url>POST https://leetcode.com/graphql</url>
+        <purpose>Send GraphQL queries for all LeetCode data access</purpose>
+      </endpoint>
+    </api_calls>
+
+    <third_party_option>
+      <name>alfa-leetcode-api</name>
+      <url>https://github.com/alfaarghya/alfa-leetcode-api</url>
+      <note>Open-source wrapper around the GraphQL API with cleaner REST-style endpoints. Useful if you do not want to write raw GraphQL queries directly.</note>
+    </third_party_option>
+
+    <javascript_instructions>
+      <goal_for_llm>Generate JavaScript code that sends GraphQL POST requests to LeetCode, optionally authenticates with session cookies, polls recent accepted submissions, parses timestamps and difficulty data, and returns normalized solve events</goal_for_llm>
+      <preferred_runtime>Node.js with fetch</preferred_runtime>
+
+      <required_capabilities>
+        <item>Send POST requests to https://leetcode.com/graphql</item>
+        <item>Set Content-Type: application/json</item>
+        <item>Optionally include Cookie header with LEETCODE_SESSION and csrftoken</item>
+        <item>Run the recent accepted submissions query for lightweight polling</item>
+        <item>Run the solved problems query for difficulty totals</item>
+        <item>Run the submission list query for detailed history</item>
+        <item>Paginate using lastKey when hasNext is true</item>
+        <item>Convert Unix timestamps to ISO strings</item>
+        <item>Filter only accepted submissions when using detailed history</item>
+        <item>Return normalized solve records for storage or challenge checking</item>
+      </required_capabilities>
+
+      <headers_example><![CDATA[
+{
+  "Content-Type": "application/json",
+  "Cookie": "LEETCODE_SESSION=your_session_value; csrftoken=your_csrf_token"
+}
+      ]]></headers_example>
+
+      <normalized_output_example>
+        <field name="source">leetcode</field>
+        <field name="action">solve</field>
+        <field name="username">your_username</field>
+        <field name="title">Two Sum</field>
+        <field name="title_slug">two-sum</field>
+        <field name="difficulty">Easy</field>
+        <field name="status">AC</field>
+        <field name="language">javascript</field>
+        <field name="timestamp">2026-03-21T10:00:00Z</field>
+      </normalized_output_example>
+
+      <recommended_files>
+        <file>leetcodeApi.ts</file>
+        <file>leetcodePolling.ts</file>
+        <file>leetcodeVerifier.ts</file>
+      </recommended_files>
+    </javascript_instructions>
+  </leetcode_api_guide>
+
+  <duolingo_api_guide>
+    <goal></goal>
+    <authentication></authentication>
+    <endpoints></endpoints>
+    <polling></polling>
+    <webhooks></webhooks>
+    <javascript_instructions></javascript_instructions>
+  </duolingo_api_guide>
+
+  <chesscom_api_guide>
+    <goal></goal>
+    <authentication></authentication>
+    <endpoints></endpoints>
+    <polling></polling>
+    <webhooks></webhooks>
+    <javascript_instructions></javascript_instructions>
+  </chesscom_api_guide>
+
+  <strava_api_guide>
+    <goal></goal>
+    <authentication></authentication>
+    <endpoints></endpoints>
+    <polling></polling>
+    <webhooks></webhooks>
+    <javascript_instructions></javascript_instructions>
+  </strava_api_guide>
+
+  <coursera_api_guide>
+    <goal></goal>
+    <authentication></authentication>
+    <endpoints></endpoints>
+    <polling></polling>
+    <webhooks></webhooks>
+    <javascript_instructions></javascript_instructions>
+  </coursera_api_guide>
+
+</apis_guide>
