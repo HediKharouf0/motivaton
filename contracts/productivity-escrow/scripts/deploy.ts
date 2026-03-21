@@ -10,6 +10,8 @@ import { ProductivityEscrow } from "../build/ProductivityEscrow_ProductivityEscr
 async function main() {
   const MNEMONIC = process.env.DEPLOY_MNEMONIC || process.env.WALLET_MNEMONIC;
   const VERIFIER_PUBKEY = process.env.VERIFIER_PUBLIC_KEY;
+  const FEE_WALLET_A = process.env.FEE_WALLET_A;
+  const FEE_WALLET_B = process.env.FEE_WALLET_B;
   const TON_ENDPOINT = process.env.TON_ENDPOINT || process.env.TON_RPC_URL || "https://testnet.toncenter.com/api/v2/jsonRPC";
   const TON_API_KEY = process.env.TON_API_KEY || process.env.RPC_API_KEY || "";
 
@@ -19,6 +21,10 @@ async function main() {
   }
   if (!VERIFIER_PUBKEY) {
     console.error("VERIFIER_PUBLIC_KEY env var is required (hex-encoded 32-byte ed25519 public key).");
+    process.exit(1);
+  }
+  if (!FEE_WALLET_A || !FEE_WALLET_B) {
+    console.error("FEE_WALLET_A and FEE_WALLET_B env vars are required.");
     process.exit(1);
   }
 
@@ -41,8 +47,11 @@ async function main() {
 
   const verifierPubKeyBigInt = BigInt("0x" + VERIFIER_PUBKEY);
 
+  const feeWalletA = Address.parse(FEE_WALLET_A);
+  const feeWalletB = Address.parse(FEE_WALLET_B);
+
   const contract = client.open(
-    await ProductivityEscrow.fromInit(walletAddress, verifierPubKeyBigInt),
+    await ProductivityEscrow.fromInit(walletAddress, verifierPubKeyBigInt, feeWalletA, feeWalletB),
   );
 
   const contractAddress = contract.address;

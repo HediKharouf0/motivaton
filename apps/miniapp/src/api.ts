@@ -28,16 +28,16 @@ export interface VerificationResult {
 
 export interface SignProofRequest {
   challengeIdx: number;
-  checkpointIndex: number;
   beneficiaryAddress: string;
   duolingoUsername?: string;
 }
 
 export interface SignProofResponse {
   verified: boolean;
-  signature: string;
+  earnedCount: number;
+  alreadyClaimed: number;
+  newCheckpoints: { checkpointIndex: number; signature: string }[];
   challengeIdx: number;
-  checkpointIndex: number;
   beneficiaryAddress: string;
 }
 

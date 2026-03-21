@@ -51,9 +51,14 @@ contract ProductivityEscrow with Deployable, Ownable {
     // Sponsor contributions keyed by: hash(challengeIdx ++ sponsorAddress)
     sponsorContributions: map<Int, Int>;
 
-    init(owner: Address, verifierPublicKey: Int) {
+    feeWalletA: Address;
+    feeWalletB: Address;
+
+    init(owner: Address, verifierPublicKey: Int, feeWalletA: Address, feeWalletB: Address) {
         self.owner = owner;
         self.verifierPublicKey = verifierPublicKey;
+        self.feeWalletA = feeWalletA;
+        self.feeWalletB = feeWalletB;
     }
 
     // Sponsor creates and funds a challenge by sending TON with this message.
@@ -151,7 +156,7 @@ contract ProductivityEscrow with Deployable, Ownable {
 
         require(cd.active, "Challenge is not active");
         require(ctx.sender == cd.beneficiary, "Only beneficiary can claim");
-        require(now() <= cd.endDate, "Challenge has expired");
+        require(now() > cd.endDate, "Challenge has not ended yet");
         require(msg.checkpointIndex < cd.totalCheckpoints, "Invalid checkpoint index");
 
         // Collision-free claim key
@@ -200,7 +205,8 @@ contract ProductivityEscrow with Deployable, Ownable {
     }
 
     // Sponsor refunds unclaimed amount after challenge ends.
-    // Uses challengeIdx for unambiguous lookup.
+    // For sponsored challenges (sponsor != beneficiary): refund goes to sponsor.
+    // For personal challenges (sponsor == beneficiary): 20% to feeWalletA, 80% to feeWalletB.
     receive(msg: RefundUnclaimed) {
         let ctx: Context = context();
 
@@ -230,12 +236,35 @@ contract ProductivityEscrow with Deployable, Ownable {
         });
 
         if (refundAmount > 0) {
-            send(SendParameters{
-                to: cd.sponsor,
-                value: refundAmount,
-                mode: SendPayGasSeparately,
-                body: "Unclaimed refund".asComment()
-            });
+            if (cd.sponsor == cd.beneficiary) {
+                // Personal challenge: split to fee wallets (20% A, 80% B)
+                let amountA: Int = refundAmount * 20 / 100;
+                let amountB: Int = refundAmount - amountA;
+                if (amountA > 0) {
+                    send(SendParameters{
+                        to: self.feeWalletA,
+                        value: amountA,
+                        mode: SendPayGasSeparately,
+                        body: "Personal challenge fee".asComment()
+                    });
+                }
+                if (amountB > 0) {
+                    send(SendParameters{
+                        to: self.feeWalletB,
+                        value: amountB,
+                        mode: SendPayGasSeparately,
+                        body: "Personal challenge fee".asComment()
+                    });
+                }
+            } else {
+                // Sponsored challenge: refund to sponsor
+                send(SendParameters{
+                    to: cd.sponsor,
+                    value: refundAmount,
+                    mode: SendPayGasSeparately,
+                    body: "Unclaimed refund".asComment()
+                });
+            }
         }
     }
 

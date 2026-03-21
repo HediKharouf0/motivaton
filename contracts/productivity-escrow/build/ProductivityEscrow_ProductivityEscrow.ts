@@ -1199,6 +1199,8 @@ export type ProductivityEscrow$Data = {
     challenges: Dictionary<bigint, ChallengeData>;
     claimedCheckpoints: Dictionary<bigint, boolean>;
     sponsorContributions: Dictionary<bigint, bigint>;
+    feeWalletA: Address;
+    feeWalletB: Address;
 }
 
 export function storeProductivityEscrow$Data(src: ProductivityEscrow$Data) {
@@ -1209,7 +1211,11 @@ export function storeProductivityEscrow$Data(src: ProductivityEscrow$Data) {
         b_0.storeUint(src.challengeCount, 32);
         b_0.storeDict(src.challenges, Dictionary.Keys.BigInt(257), dictValueParserChallengeData());
         b_0.storeDict(src.claimedCheckpoints, Dictionary.Keys.BigInt(257), Dictionary.Values.Bool());
-        b_0.storeDict(src.sponsorContributions, Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257));
+        const b_1 = new Builder();
+        b_1.storeDict(src.sponsorContributions, Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257));
+        b_1.storeAddress(src.feeWalletA);
+        b_1.storeAddress(src.feeWalletB);
+        b_0.storeRef(b_1.endCell());
     };
 }
 
@@ -1220,8 +1226,11 @@ export function loadProductivityEscrow$Data(slice: Slice) {
     const _challengeCount = sc_0.loadUintBig(32);
     const _challenges = Dictionary.load(Dictionary.Keys.BigInt(257), dictValueParserChallengeData(), sc_0);
     const _claimedCheckpoints = Dictionary.load(Dictionary.Keys.BigInt(257), Dictionary.Values.Bool(), sc_0);
-    const _sponsorContributions = Dictionary.load(Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257), sc_0);
-    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions };
+    const sc_1 = sc_0.loadRef().beginParse();
+    const _sponsorContributions = Dictionary.load(Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257), sc_1);
+    const _feeWalletA = sc_1.loadAddress();
+    const _feeWalletB = sc_1.loadAddress();
+    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions, feeWalletA: _feeWalletA, feeWalletB: _feeWalletB };
 }
 
 export function loadTupleProductivityEscrow$Data(source: TupleReader) {
@@ -1231,7 +1240,9 @@ export function loadTupleProductivityEscrow$Data(source: TupleReader) {
     const _challenges = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), dictValueParserChallengeData(), source.readCellOpt());
     const _claimedCheckpoints = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.Bool(), source.readCellOpt());
     const _sponsorContributions = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257), source.readCellOpt());
-    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions };
+    const _feeWalletA = source.readAddress();
+    const _feeWalletB = source.readAddress();
+    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions, feeWalletA: _feeWalletA, feeWalletB: _feeWalletB };
 }
 
 export function loadGetterTupleProductivityEscrow$Data(source: TupleReader) {
@@ -1241,7 +1252,9 @@ export function loadGetterTupleProductivityEscrow$Data(source: TupleReader) {
     const _challenges = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), dictValueParserChallengeData(), source.readCellOpt());
     const _claimedCheckpoints = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.Bool(), source.readCellOpt());
     const _sponsorContributions = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257), source.readCellOpt());
-    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions };
+    const _feeWalletA = source.readAddress();
+    const _feeWalletB = source.readAddress();
+    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions, feeWalletA: _feeWalletA, feeWalletB: _feeWalletB };
 }
 
 export function storeTupleProductivityEscrow$Data(source: ProductivityEscrow$Data) {
@@ -1252,6 +1265,8 @@ export function storeTupleProductivityEscrow$Data(source: ProductivityEscrow$Dat
     builder.writeCell(source.challenges.size > 0 ? beginCell().storeDictDirect(source.challenges, Dictionary.Keys.BigInt(257), dictValueParserChallengeData()).endCell() : null);
     builder.writeCell(source.claimedCheckpoints.size > 0 ? beginCell().storeDictDirect(source.claimedCheckpoints, Dictionary.Keys.BigInt(257), Dictionary.Values.Bool()).endCell() : null);
     builder.writeCell(source.sponsorContributions.size > 0 ? beginCell().storeDictDirect(source.sponsorContributions, Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257)).endCell() : null);
+    builder.writeAddress(source.feeWalletA);
+    builder.writeAddress(source.feeWalletB);
     return builder.build();
 }
 
@@ -1270,6 +1285,8 @@ export function dictValueParserProductivityEscrow$Data(): DictionaryValue<Produc
     $$type: 'ProductivityEscrow_init_args';
     owner: Address;
     verifierPublicKey: bigint;
+    feeWalletA: Address;
+    feeWalletB: Address;
 }
 
 function initProductivityEscrow_init_args(src: ProductivityEscrow_init_args) {
@@ -1277,14 +1294,18 @@ function initProductivityEscrow_init_args(src: ProductivityEscrow_init_args) {
         const b_0 = builder;
         b_0.storeAddress(src.owner);
         b_0.storeInt(src.verifierPublicKey, 257);
+        b_0.storeAddress(src.feeWalletA);
+        const b_1 = new Builder();
+        b_1.storeAddress(src.feeWalletB);
+        b_0.storeRef(b_1.endCell());
     };
 }
 
-async function ProductivityEscrow_init(owner: Address, verifierPublicKey: bigint) {
-    const __code = Cell.fromHex('b5ee9c724102210100078100022cff008e88f4a413f4bcf2c80bed53208e8130e1ed43d90112020271020d02012003050173bbbe4ed44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de2db3c6c61804000223020120060b020162070901a2a837ed44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de25505db3c6c61206e92306d99206ef2d0806f2b6f0be2206e92306dde08013a810101240259f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be21c0172a91ded44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de2db3c6c610a0002250177b7205da89a1a400031c35f481a7ffa63fe809a803a1e809e80860204c204a20482046d82d3ff481020203ae00b205a202e0dadadbc4aa2bb678d8c300c0040c812cb1fcb1fc9f9008101012302714133f40c6fa19401d70030925b6de26eb30201200e100173b8bf5ed44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de2db3c6c6180f0002240177b8790ed44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de25515db3c6c618110058c812cb1f01cf16c9f900810101530250334133f40c6fa19401d70030925b6de2206eb395206ef2d080e0307004f601d072d721d200d200fa4021103450666f04f86102f862ed44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de207925f07e005d70d1ff2e082218210c2860504bae30221821048402acdbae3022182107b562c3fbae30221821070ccaed41315171b02fe31fa40d401d001d31fd33fd20030f8416f243032816cf022820afaf080bcf2f4816f8225c200f2f4f8235240bcf2e65301820afaf080a15304a9048108cd21c200f2f481010170f8237f265196109d108c106b105b433dc855a0db3cc925103501206e953059f45a30944133f415e2c85240cb1f5003cf16c9f900810101201d140070104913216e955b59f45a3098c801cf004133f442e201a41035441359c87f01ca0055505056ce13cbffcb1ff40001c8f40012f400cdc9ed5403f631d31f30f8416f243032238101012459f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b358120f121f2f48200efb8f82324bbf2f48200f4d22c8208989680bcf2f40b8208989680a15166a05305a904109a108a107a553006050c8101010dc855a0db3cc9453052401c1d1600f6206e953059f45a30944133f415e2c813cb1f5003cf16c9f90081010154580052304133f40c6fa19401d70030925b6de270216eb39630206ef2d0809131e281010104a02310491039216e955b59f45a3098c801cf004133f442e21035443012c87f01ca0055505056ce13cbffcb1ff40001c8f40012f400cdc9ed5402ee31d31fd31fd430d0f8416f2410235f03248101012559f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b8120f158f2f48200d92d51b9c7051bf2f48200efb8f82323bbf2f48200a85353c5b9f2f4c852d0cb1f52c0cb1fc9f9008200e1e5561381010123711c1803fc4133f40c6fa19401d70030925b6de26ef2f4c852e0cb1f1dcb1f28cf16c9f9008200bd110c5611f9101bf2f401111001810101500b7f71216e955b59f45a3098c801cf004133f442e20fa45302b98101015373103d4cdbc855a0db3cc9103514206e953059f45a30944133f415e27188103410245a6d6d40037fc8cf85801d191a002a00000000436865636b706f696e74207265776172640098ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb0010355512c87f01ca0055505056ce13cbffcb1ff40001c8f40012f400cdc9ed5404feba8ff431d31f30f8416f2410235f03228101012359f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b81452551cbc7051cf2f4812fbef82324bcf2f48200f35301f2f45342a124a8810101702b0a109b08107b06105b04103b401dc855a0db3cc910354540e0018210946a98b61c1d1e200034fa40fa40d401d001fa00d31ffa00d31fd33fd33fd200d20055a0003c50abce18ce06c8ce16cd5004fa0212cb1f01fa02cb1fcb3fcb3fca00ca0001e6206e953059f45a30944133f415e221c2008ebc7188103410245a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb00926c21e210355512c87f01ca0055505056ce13cbffcb1ff40001c8f40012f400cdc9ed541f002800000000556e636c61696d656420726566756e6400c0ba8e57d33f30c8018210aff90f5758cb1fcb3fc910461035443012f84270705003804201503304c8cf8580ca00cf8440ce01fa02806acf40f400c901fb00c87f01ca0055505056ce13cbffcb1ff40001c8f40012f400cdc9ed54e05f07f2c082b081f2f4');
+async function ProductivityEscrow_init(owner: Address, verifierPublicKey: bigint, feeWalletA: Address, feeWalletB: Address) {
+    const __code = Cell.fromHex('b5ee9c72410226010008e0000228ff008e88f4a413f4bcf2c80bed5320e303ed43d90112020271020d02012003050199bbbe4ed44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e2db3c6c81804000225020120060b020162070901c8a837ed44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e25507db3c6c81206e92306d99206ef2d0806f2b6f0be2206e92306dde08013a810101260259f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be21d0198a91ded44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e2db3c6c810a000227019db7205da89a1a400031c3df481a7ffa63fe809a803a1e809e809f481f480602090208e208c208ad8311c3bf481020203ae01f481a803a1f4806028866009a2aa04e004dadab4da05c4aa2fb678d90300c0040c812cb1fcb1fc9f9008101012502714133f40c6fa19401d70030925b6de26eb30201200e100199b8bf5ed44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e2db3c6c8180f000226019db8790ed44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e25517db3c6c818110058c812cb1f01cf16c9f900810101530450334133f40c6fa19401d70030925b6de2206eb395206ef2d080e0307002f83001d072d721d200d200fa4021103450666f04f86102f862ed44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e209925f09e007d70d1ff2e082218210c2860504bae30221821048402acdba131502fc31fa40d401d001d31fd33fd20030f8416f243032816cf022820afaf080bcf2f4816f8225c200f2f4f8235240bcf2e65301820afaf080a15304a9048108cd21c200f2f481010170f8237f265196109d108c106b105b433dc855a0db3cc927103701206e953059f45a30944133f415e2c85260cb1f5005cf16c9f9008101011e14007c5122216e955b59f45a3098c801cf004133f442e203a410571046443512c87f01ca0055705078ce15cbff13cb1ff40001c8f40012f40012ce12cecdc9ed5404fe8ffb31d31f30f8416f243032258101012459f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b358120f121f2f48200efb8f82324bbf2f48200f4d22c8208989680bcf2f40b8208989680a15166a05305a904109a108a107a553006050c8101010dc855a0db3cc947305240e0211d1e161700fa206e953059f45a30944133f415e2c813cb1f5005cf16c9f90081010154530052304133f40c6fa19401d70030925b6de270216eb39630206ef2d0809131e281010106a0251036216e955b59f45a3098c801cf004133f442e210575514c87f01ca0055705078ce15cbff13cb1ff40001c8f40012f40012ce12cecdc9ed5403fe82107b562c3fba8f7631d31fd31fd430d0f8416f2410235f03268101012559f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b8120f158f2f48200d92d51b9c7051bf2f4812fbef82323bcf2f48200a85353c5b9f2f4c852d0cb1f52c0cb1fc9f9008200e1e5561081010123711d181c04fc4133f40c6fa19401d70030925b6de26ef2f4c852e0cb1f1dcb1f28cf16c9f9008200bd110c5613f9101bf2f41d810101500b7f71216e955b59f45a3098c801cf004133f442e20ca45302b98101015373103d4cdbc855a0db3cc9103714206e953059f45a30944133f415e27188103610265a6d6d40037fc8cf8580ca00891e191a1b002a00000000436865636b706f696e7420726577617264000110009ccf16ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb0010575514c87f01ca0055705078ce15cbff13cb1ff40001c8f40012f40012ce12cecdc9ed5404fee021821070ccaed4ba8ff431d31f30f8416f2410235f03248101012359f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b81452551cbc7051cf2f4812fbef82324bcf2f48200f35301f2f45342a124a8810101702b519b09108b5076105b03504e4bb0c855a0db3cc910385e311d1e1f250034fa40fa40d401d001fa00d31ffa00d31fd33fd33fd200d20055a0003c50abce18ce06c8ce16cd5004fa0212cb1f01fa02cb1fcb3fcb3fca00ca0003be206e953059f45a30944133f415e222c2008f445252c7058ebc7188103610265a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb00e30d92355be210575514202124002800000000556e636c61696d656420726566756e6402aa3420a7148064a90466a121c2008ebc71882a0344445a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb009131e220c2009130e30d2322017671882a55205a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb0023003400000000506572736f6e616c206368616c6c656e6765206665650042c87f01ca0055705078ce15cbff13cb1ff40001c8f40012f40012ce12cecdc9ed5400e2e0018210946a98b6ba8e60d33f30c8018210aff90f5758cb1fcb3fc91068105710461035443012f84270705003804201503304c8cf8580ca00cf8440ce01fa02806acf40f400c901fb00c87f01ca0055705078ce15cbff13cb1ff40001c8f40012f40012ce12cecdc9ed54e05f09f2c0821614ec29');
     const builder = beginCell();
     builder.storeUint(0, 1);
-    initProductivityEscrow_init_args({ $$type: 'ProductivityEscrow_init_args', owner, verifierPublicKey })(builder);
+    initProductivityEscrow_init_args({ $$type: 'ProductivityEscrow_init_args', owner, verifierPublicKey, feeWalletA, feeWalletB })(builder);
     const __data = builder.endCell();
     return { code: __code, data: __data };
 }
@@ -1418,7 +1439,7 @@ const ProductivityEscrow_types: ABIType[] = [
     {"name":"ClaimCheckpoint","header":2069244991,"fields":[{"name":"challengeIdx","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"checkpointIndex","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"signature","type":{"kind":"simple","type":"slice","optional":false}}]},
     {"name":"RefundUnclaimed","header":1892462292,"fields":[{"name":"challengeIdx","type":{"kind":"simple","type":"uint","optional":false,"format":32}}]},
     {"name":"ChallengeData","header":null,"fields":[{"name":"sponsor","type":{"kind":"simple","type":"address","optional":false}},{"name":"beneficiary","type":{"kind":"simple","type":"address","optional":false}},{"name":"challengeId","type":{"kind":"simple","type":"string","optional":false}},{"name":"totalDeposit","type":{"kind":"simple","type":"uint","optional":false,"format":"coins"}},{"name":"totalCheckpoints","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"amountPerCheckpoint","type":{"kind":"simple","type":"uint","optional":false,"format":"coins"}},{"name":"claimedCount","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"endDate","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"createdAt","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"active","type":{"kind":"simple","type":"bool","optional":false}},{"name":"unlisted","type":{"kind":"simple","type":"bool","optional":false}}]},
-    {"name":"ProductivityEscrow$Data","header":null,"fields":[{"name":"owner","type":{"kind":"simple","type":"address","optional":false}},{"name":"verifierPublicKey","type":{"kind":"simple","type":"uint","optional":false,"format":256}},{"name":"challengeCount","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"challenges","type":{"kind":"dict","key":"int","value":"ChallengeData","valueFormat":"ref"}},{"name":"claimedCheckpoints","type":{"kind":"dict","key":"int","value":"bool"}},{"name":"sponsorContributions","type":{"kind":"dict","key":"int","value":"int"}}]},
+    {"name":"ProductivityEscrow$Data","header":null,"fields":[{"name":"owner","type":{"kind":"simple","type":"address","optional":false}},{"name":"verifierPublicKey","type":{"kind":"simple","type":"uint","optional":false,"format":256}},{"name":"challengeCount","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"challenges","type":{"kind":"dict","key":"int","value":"ChallengeData","valueFormat":"ref"}},{"name":"claimedCheckpoints","type":{"kind":"dict","key":"int","value":"bool"}},{"name":"sponsorContributions","type":{"kind":"dict","key":"int","value":"int"}},{"name":"feeWalletA","type":{"kind":"simple","type":"address","optional":false}},{"name":"feeWalletB","type":{"kind":"simple","type":"address","optional":false}}]},
 ]
 
 const ProductivityEscrow_opcodes = {
@@ -1466,12 +1487,12 @@ export class ProductivityEscrow implements Contract {
     public static readonly errors = ProductivityEscrow_errors_backward;
     public static readonly opcodes = ProductivityEscrow_opcodes;
     
-    static async init(owner: Address, verifierPublicKey: bigint) {
-        return await ProductivityEscrow_init(owner, verifierPublicKey);
+    static async init(owner: Address, verifierPublicKey: bigint, feeWalletA: Address, feeWalletB: Address) {
+        return await ProductivityEscrow_init(owner, verifierPublicKey, feeWalletA, feeWalletB);
     }
     
-    static async fromInit(owner: Address, verifierPublicKey: bigint) {
-        const __gen_init = await ProductivityEscrow_init(owner, verifierPublicKey);
+    static async fromInit(owner: Address, verifierPublicKey: bigint, feeWalletA: Address, feeWalletB: Address) {
+        const __gen_init = await ProductivityEscrow_init(owner, verifierPublicKey, feeWalletA, feeWalletB);
         const address = contractAddress(0, __gen_init);
         return new ProductivityEscrow(address, __gen_init);
     }

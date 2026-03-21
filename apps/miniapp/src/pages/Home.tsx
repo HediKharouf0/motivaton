@@ -162,37 +162,39 @@ export function Home() {
       <section className="detail-stack">
         <div className="section-header">
           <div>
-            <div className="title-with-pill">
-              <h2 className="section-title">Your challenges</h2>
-              {userAddress && (
-                <span className="inline-note" title={`${myChallenges.length} challenges`} aria-label={`${myChallenges.length} challenges`}>
-                  {myChallenges.length}
-                </span>
-              )}
+            <div className="section-heading-row">
+              <div className="title-with-pill">
+                <h2 className="section-title">Your challenges</h2>
+                {userAddress && (
+                  <span className="inline-note" title={`${myChallenges.length} challenges`} aria-label={`${myChallenges.length} challenges`}>
+                    {myChallenges.length}
+                  </span>
+                )}
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => void refreshChallenges()}
+                disabled={loading}
+                aria-label="Refresh your challenges"
+                title="Refresh your challenges"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
             </div>
             <p className="section-note">
               Only challenges where the connected wallet is the sponsor or beneficiary are shown here.
             </p>
           </div>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => void refreshChallenges()}
-            disabled={loading}
-            aria-label="Refresh your challenges"
-            title="Refresh your challenges"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
         </div>
         {!userAddress && (
           <div className="empty-state">
@@ -219,35 +221,37 @@ export function Home() {
       <section className="detail-stack">
         <div className="section-header">
           <div>
-            <div className="title-with-pill">
-              <h2 className="section-title">Browse challenges</h2>
-              <span className="inline-note" title={`${browseChallenges.length} public challenges`} aria-label={`${browseChallenges.length} public challenges`}>
-                {browseChallenges.length}
-              </span>
+            <div className="section-heading-row">
+              <div className="title-with-pill">
+                <h2 className="section-title">Browse challenges</h2>
+                <span className="inline-note" title={`${browseChallenges.length} public challenges`} aria-label={`${browseChallenges.length} public challenges`}>
+                  {browseChallenges.length}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => void refreshChallenges()}
+                disabled={loading}
+                aria-label="Refresh browse challenges"
+                title="Refresh browse challenges"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
             </div>
             <p className="section-note">
               Public challenges from other users. Unlisted challenges stay out of this section.
             </p>
           </div>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => void refreshChallenges()}
-            disabled={loading}
-            aria-label="Refresh browse challenges"
-            title="Refresh browse challenges"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M20 12a8 8 0 1 1-2.34-5.66M20 4v6h-6"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
         </div>
         {loading && <div className="loading-card">Loading browse challenges...</div>}
         {!loading && browseChallenges.length === 0 && (

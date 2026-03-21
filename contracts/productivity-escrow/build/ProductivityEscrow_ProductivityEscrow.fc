@@ -51,10 +51,10 @@ tuple $ChallengeData$_as_optional((slice, slice, slice, int, int, int, int, int,
 tuple $ChallengeData$_load_opt(cell cl) inline;
 
 ;; $ProductivityEscrow$_store
-builder $ProductivityEscrow$_store(builder build_0, (slice, int, int, cell, cell, cell) v) inline;
+builder $ProductivityEscrow$_store(builder build_0, (slice, int, int, cell, cell, cell, slice, slice) v) inline;
 
 ;; $ProductivityEscrow$_load
-(slice, ((slice, int, int, cell, cell, cell))) $ProductivityEscrow$_load(slice sc_0) inline;
+(slice, ((slice, int, int, cell, cell, cell, slice, slice))) $ProductivityEscrow$_load(slice sc_0) inline;
 
 ;; $Context$_get_value
 _ $Context$_get_value((int, slice, int, slice) v) inline;
@@ -72,40 +72,40 @@ tuple $ChallengeData$_to_opt_tuple(tuple v) inline;
 tuple $ChallengeData$_to_opt_external(tuple v) inline;
 
 ;; $ProductivityEscrow$init$_load
-(slice, ((slice, int))) $ProductivityEscrow$init$_load(slice sc_0) inline;
+(slice, ((slice, int, slice, slice))) $ProductivityEscrow$init$_load(slice sc_0) inline;
 
 ;; $ProductivityEscrow$_contract_init
-(slice, int, int, cell, cell, cell) $ProductivityEscrow$_contract_init(slice $owner, int $verifierPublicKey) impure inline;
+(slice, int, int, cell, cell, cell, slice, slice) $ProductivityEscrow$_contract_init(slice $owner, int $verifierPublicKey, slice $feeWalletA, slice $feeWalletB) impure inline;
 
 ;; $ProductivityEscrow$_contract_load
-(slice, int, int, cell, cell, cell) $ProductivityEscrow$_contract_load() impure inline;
+(slice, int, int, cell, cell, cell, slice, slice) $ProductivityEscrow$_contract_load() impure inline;
 
 ;; $ProductivityEscrow$_contract_store
-() $ProductivityEscrow$_contract_store((slice, int, int, cell, cell, cell) v) impure inline;
+() $ProductivityEscrow$_contract_store((slice, int, int, cell, cell, cell, slice, slice) v) impure inline;
 
 ;; $ProductivityEscrow$_fun_challengeCount
-((slice, int, int, cell, cell, cell), int) $ProductivityEscrow$_fun_challengeCount((slice, int, int, cell, cell, cell) $self) impure inline_ref;
+((slice, int, int, cell, cell, cell, slice, slice), int) $ProductivityEscrow$_fun_challengeCount((slice, int, int, cell, cell, cell, slice, slice) $self) impure inline_ref;
 
 ;; $ProductivityEscrow$_fun_challenge
-((slice, int, int, cell, cell, cell), tuple) $ProductivityEscrow$_fun_challenge((slice, int, int, cell, cell, cell) $self, int $idx) impure inline_ref;
+((slice, int, int, cell, cell, cell, slice, slice), tuple) $ProductivityEscrow$_fun_challenge((slice, int, int, cell, cell, cell, slice, slice) $self, int $idx) impure inline_ref;
 
 ;; $ProductivityEscrow$_fun_isCheckpointClaimed
-((slice, int, int, cell, cell, cell), int) $ProductivityEscrow$_fun_isCheckpointClaimed((slice, int, int, cell, cell, cell) $self, int $challengeIdx, int $checkpointIdx) impure inline_ref;
+((slice, int, int, cell, cell, cell, slice, slice), int) $ProductivityEscrow$_fun_isCheckpointClaimed((slice, int, int, cell, cell, cell, slice, slice) $self, int $challengeIdx, int $checkpointIdx) impure inline_ref;
 
 ;; $ProductivityEscrow$_fun_sponsorContribution
-((slice, int, int, cell, cell, cell), int) $ProductivityEscrow$_fun_sponsorContribution((slice, int, int, cell, cell, cell) $self, int $challengeIdx, slice $sponsor) impure inline_ref;
+((slice, int, int, cell, cell, cell, slice, slice), int) $ProductivityEscrow$_fun_sponsorContribution((slice, int, int, cell, cell, cell, slice, slice) $self, int $challengeIdx, slice $sponsor) impure inline_ref;
 
 ;; $ProductivityEscrow$_fun_verifierPublicKey
-((slice, int, int, cell, cell, cell), int) $ProductivityEscrow$_fun_verifierPublicKey((slice, int, int, cell, cell, cell) $self) impure inline_ref;
+((slice, int, int, cell, cell, cell, slice, slice), int) $ProductivityEscrow$_fun_verifierPublicKey((slice, int, int, cell, cell, cell, slice, slice) $self) impure inline_ref;
 
 ;; $MessageParameters$_constructor_bounce_to_value_mode_body
 ((int, cell, int, slice, int)) $MessageParameters$_constructor_bounce_to_value_mode_body(int $bounce, slice $to, int $value, int $mode, cell $body) inline;
 
 ;; $ProductivityEscrow$_fun_notify
-((slice, int, int, cell, cell, cell), ()) $ProductivityEscrow$_fun_notify((slice, int, int, cell, cell, cell) $self, cell $body) impure inline;
+((slice, int, int, cell, cell, cell, slice, slice), ()) $ProductivityEscrow$_fun_notify((slice, int, int, cell, cell, cell, slice, slice) $self, cell $body) impure inline;
 
 ;; $ProductivityEscrow$_fun_owner
-((slice, int, int, cell, cell, cell), slice) $ProductivityEscrow$_fun_owner((slice, int, int, cell, cell, cell) $self) impure inline_ref;
+((slice, int, int, cell, cell, cell, slice, slice), slice) $ProductivityEscrow$_fun_owner((slice, int, int, cell, cell, cell, slice, slice) $self) impure inline_ref;
 
 ;; $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_createdAt_active_unlisted
 ((slice, slice, slice, int, int, int, int, int, int, int, int)) $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_createdAt_active_unlisted(slice $sponsor, slice $beneficiary, slice $challengeId, int $totalDeposit, int $totalCheckpoints, int $amountPerCheckpoint, int $claimedCount, int $endDate, int $createdAt, int $active, int $unlisted) inline;
@@ -306,8 +306,8 @@ int $Cell$_fun_hash(cell $self) impure asm """
     HASHCU
 """;
 
-((slice, int, int, cell, cell, cell), ()) $ProductivityEscrow$_fun_notify((slice, int, int, cell, cell, cell) $self, cell $body) impure inline {
-    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions)) = $self;
+((slice, int, int, cell, cell, cell, slice, slice), ()) $ProductivityEscrow$_fun_notify((slice, int, int, cell, cell, cell, slice, slice) $self, cell $body) impure inline {
+    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB)) = $self;
     slice $to = __tact_context_get_sender();
     int $bounce = false;
     if (false) {
@@ -316,23 +316,28 @@ int $Cell$_fun_hash(cell $self) impure asm """
         if (($balanceBeforeMessage < 0)) {
             $global_nativeReserve(0, 0);
             $global_message($MessageParameters$_constructor_bounce_to_value_mode_body($bounce, $to, 0, 130, $body));
-            return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions), ());
+            return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB), ());
         }
     }
     $global_message($MessageParameters$_constructor_bounce_to_value_mode_body($bounce, $to, 0, 66, $body));
-    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions), ());
+    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB), ());
 }
 
-((slice, int, int, cell, cell, cell), slice) $ProductivityEscrow$_fun_owner((slice, int, int, cell, cell, cell) $self) impure inline_ref {
-    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions)) = $self;
+((slice, int, int, cell, cell, cell, slice, slice), slice) $ProductivityEscrow$_fun_owner((slice, int, int, cell, cell, cell, slice, slice) $self) impure inline_ref {
+    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB)) = $self;
     var $fresh$ret_6 = $self'owner;
-    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions), $fresh$ret_6);
+    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB), $fresh$ret_6);
 }
 
 ;; ProductivityEscrow_ProductivityEscrow.constants.fc
 ;; Cell c8zkE3wTq1btSjLeLplIJBWObDDNK3UQE87Yvly8/RQ=
 cell __gen_cell_cell_73cce4137c13ab56ed4a32de2e994824158e6c30cd2b751013ced8be5cbcfd14() asm """
     B{b5ee9c7241010101001700002a00000000436865636b706f696e7420726577617264a2e172d4} B>boc PUSHREF
+""";
+
+;; Cell B693ATTqP0RYLaI3zYh/B/XtkwF3n/7fCnmbBaLBCHc=
+cell __gen_cell_cell_07af770134ea3f44582da237cd887f07f5ed9301779ffedf0a799b05a2c10877() asm """
+    B{b5ee9c7241010101001c00003400000000506572736f6e616c206368616c6c656e6765206665659696d6f9} B>boc PUSHREF
 """;
 
 ;; Cell wXVuG6AuVG0Sl1ylkRFO5h1YxtmLcJPhfYbnNM+RzUk=
@@ -474,11 +479,11 @@ tuple $ChallengeData$_to_opt_external(tuple v) inline {
 
 ;;
 ;; Type: ProductivityEscrow
-;; TLB: _ owner:address verifierPublicKey:uint256 challengeCount:uint32 challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}> claimedCheckpoints:dict<int, bool> sponsorContributions:dict<int, int> = ProductivityEscrow
+;; TLB: _ owner:address verifierPublicKey:uint256 challengeCount:uint32 challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}> claimedCheckpoints:dict<int, bool> sponsorContributions:dict<int, int> feeWalletA:address feeWalletB:address = ProductivityEscrow
 ;;
 
-builder $ProductivityEscrow$_store(builder build_0, (slice, int, int, cell, cell, cell) v) inline {
-    var (v'owner, v'verifierPublicKey, v'challengeCount, v'challenges, v'claimedCheckpoints, v'sponsorContributions) = v;
+builder $ProductivityEscrow$_store(builder build_0, (slice, int, int, cell, cell, cell, slice, slice) v) inline {
+    var (v'owner, v'verifierPublicKey, v'challengeCount, v'challenges, v'claimedCheckpoints, v'sponsorContributions, v'feeWalletA, v'feeWalletB) = v;
     build_0 = build_0.store_slice(v'owner);
     build_0 = build_0.store_uint(v'verifierPublicKey, 256);
     build_0 = build_0.store_uint(v'challengeCount, 32);
@@ -486,11 +491,13 @@ builder $ProductivityEscrow$_store(builder build_0, (slice, int, int, cell, cell
     var build_1 = begin_cell();
     build_1 = build_1.store_dict(v'claimedCheckpoints);
     build_1 = build_1.store_dict(v'sponsorContributions);
+    build_1 = build_1.store_slice(v'feeWalletA);
+    build_1 = build_1.store_slice(v'feeWalletB);
     build_0 = store_builder_ref(build_0, build_1);
     return build_0;
 }
 
-(slice, ((slice, int, int, cell, cell, cell))) $ProductivityEscrow$_load(slice sc_0) inline {
+(slice, ((slice, int, int, cell, cell, cell, slice, slice))) $ProductivityEscrow$_load(slice sc_0) inline {
     var v'owner = sc_0~load_msg_addr();
     var v'verifierPublicKey = sc_0~load_uint(256);
     var v'challengeCount = sc_0~load_uint(32);
@@ -498,29 +505,34 @@ builder $ProductivityEscrow$_store(builder build_0, (slice, int, int, cell, cell
     slice sc_1 = sc_0~load_ref().begin_parse();
     var v'claimedCheckpoints = sc_1~load_dict();
     var v'sponsorContributions = sc_1~load_dict();
-    return (sc_0, (v'owner, v'verifierPublicKey, v'challengeCount, v'challenges, v'claimedCheckpoints, v'sponsorContributions));
+    var v'feeWalletA = sc_1~load_msg_addr();
+    var v'feeWalletB = sc_1~load_msg_addr();
+    return (sc_0, (v'owner, v'verifierPublicKey, v'challengeCount, v'challenges, v'claimedCheckpoints, v'sponsorContributions, v'feeWalletA, v'feeWalletB));
 }
 
-(slice, ((slice, int))) $ProductivityEscrow$init$_load(slice sc_0) inline {
+(slice, ((slice, int, slice, slice))) $ProductivityEscrow$init$_load(slice sc_0) inline {
     var v'owner = sc_0~load_msg_addr();
     var v'verifierPublicKey = sc_0~load_int(257);
-    return (sc_0, (v'owner, v'verifierPublicKey));
+    var v'feeWalletA = sc_0~load_msg_addr();
+    slice sc_1 = sc_0~load_ref().begin_parse();
+    var v'feeWalletB = sc_1~load_msg_addr();
+    return (sc_0, (v'owner, v'verifierPublicKey, v'feeWalletA, v'feeWalletB));
 }
 
-(slice, int, int, cell, cell, cell) $ProductivityEscrow$_contract_load() impure inline {
+(slice, int, int, cell, cell, cell, slice, slice) $ProductivityEscrow$_contract_load() impure inline {
     slice $sc = get_data().begin_parse();
     int $loaded = $sc~load_int(1);
     if ($loaded) {
         return $sc~$ProductivityEscrow$_load();
     }
     else {
-        (slice $owner, int $verifierPublicKey) = $sc~$ProductivityEscrow$init$_load();
+        (slice $owner, int $verifierPublicKey, slice $feeWalletA, slice $feeWalletB) = $sc~$ProductivityEscrow$init$_load();
         $sc.end_parse();
-        return $ProductivityEscrow$_contract_init($owner, $verifierPublicKey);
+        return $ProductivityEscrow$_contract_init($owner, $verifierPublicKey, $feeWalletA, $feeWalletB);
     }
 }
 
-() $ProductivityEscrow$_contract_store((slice, int, int, cell, cell, cell) v) impure inline {
+() $ProductivityEscrow$_contract_store((slice, int, int, cell, cell, cell, slice, slice) v) impure inline {
     builder b = begin_cell();
     b = b.store_int(true, 1);
     b = $ProductivityEscrow$_store(b, v);
@@ -531,48 +543,50 @@ builder $ProductivityEscrow$_store(builder build_0, (slice, int, int, cell, cell
 ;; Contract ProductivityEscrow functions
 ;;
 
-(slice, int, int, cell, cell, cell) $ProductivityEscrow$_contract_init(slice $owner, int $verifierPublicKey) impure inline {
-    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions)) = (null(), null(), 0, null(), null(), null());
+(slice, int, int, cell, cell, cell, slice, slice) $ProductivityEscrow$_contract_init(slice $owner, int $verifierPublicKey, slice $feeWalletA, slice $feeWalletB) impure inline {
+    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB)) = (null(), null(), 0, null(), null(), null(), null(), null());
     $self'owner = $owner;
     $self'verifierPublicKey = $verifierPublicKey;
-    return ($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions);
+    $self'feeWalletA = $feeWalletA;
+    $self'feeWalletB = $feeWalletB;
+    return ($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB);
 }
 
-((slice, int, int, cell, cell, cell), int) $ProductivityEscrow$_fun_challengeCount((slice, int, int, cell, cell, cell) $self) impure inline_ref {
-    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions)) = $self;
+((slice, int, int, cell, cell, cell, slice, slice), int) $ProductivityEscrow$_fun_challengeCount((slice, int, int, cell, cell, cell, slice, slice) $self) impure inline_ref {
+    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB)) = $self;
     var $fresh$ret_0 = $self'challengeCount;
-    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions), $fresh$ret_0);
+    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB), $fresh$ret_0);
 }
 
-((slice, int, int, cell, cell, cell), tuple) $ProductivityEscrow$_fun_challenge((slice, int, int, cell, cell, cell) $self, int $idx) impure inline_ref {
-    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions)) = $self;
+((slice, int, int, cell, cell, cell, slice, slice), tuple) $ProductivityEscrow$_fun_challenge((slice, int, int, cell, cell, cell, slice, slice) $self, int $idx) impure inline_ref {
+    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB)) = $self;
     var $fresh$ret_1 = $ChallengeData$_load_opt(__tact_dict_get_int_cell($self'challenges, 257, $idx));
-    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions), $fresh$ret_1);
+    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB), $fresh$ret_1);
 }
 
-((slice, int, int, cell, cell, cell), int) $ProductivityEscrow$_fun_isCheckpointClaimed((slice, int, int, cell, cell, cell) $self, int $challengeIdx, int $checkpointIdx) impure inline_ref {
-    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions)) = $self;
+((slice, int, int, cell, cell, cell, slice, slice), int) $ProductivityEscrow$_fun_isCheckpointClaimed((slice, int, int, cell, cell, cell, slice, slice) $self, int $challengeIdx, int $checkpointIdx) impure inline_ref {
+    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB)) = $self;
     int $claimKey = $Cell$_fun_hash($Builder$_fun_endCell(store_uint(store_uint($global_beginCell(), $challengeIdx, 32), $checkpointIdx, 32)));
     var $fresh$ret_2 = (~ null?(__tact_dict_get_int_int($self'claimedCheckpoints, 257, $claimKey, 1)));
-    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions), $fresh$ret_2);
+    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB), $fresh$ret_2);
 }
 
-((slice, int, int, cell, cell, cell), int) $ProductivityEscrow$_fun_sponsorContribution((slice, int, int, cell, cell, cell) $self, int $challengeIdx, slice $sponsor) impure inline_ref {
-    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions)) = $self;
+((slice, int, int, cell, cell, cell, slice, slice), int) $ProductivityEscrow$_fun_sponsorContribution((slice, int, int, cell, cell, cell, slice, slice) $self, int $challengeIdx, slice $sponsor) impure inline_ref {
+    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB)) = $self;
     int $contribKey = $Cell$_fun_hash($Builder$_fun_endCell($Builder$_fun_storeAddress(store_uint($global_beginCell(), $challengeIdx, 32), $sponsor)));
     int $val = __tact_dict_get_int_int($self'sponsorContributions, 257, $contribKey, 257);
     if ((~ null?($val))) {
         var $fresh$ret_3 = __tact_not_null($val);
-        return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions), $fresh$ret_3);
+        return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB), $fresh$ret_3);
     }
     var $fresh$ret_4 = 0;
-    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions), $fresh$ret_4);
+    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB), $fresh$ret_4);
 }
 
-((slice, int, int, cell, cell, cell), int) $ProductivityEscrow$_fun_verifierPublicKey((slice, int, int, cell, cell, cell) $self) impure inline_ref {
-    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions)) = $self;
+((slice, int, int, cell, cell, cell, slice, slice), int) $ProductivityEscrow$_fun_verifierPublicKey((slice, int, int, cell, cell, cell, slice, slice) $self) impure inline_ref {
+    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB)) = $self;
     var $fresh$ret_5 = $self'verifierPublicKey;
-    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions), $fresh$ret_5);
+    return (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB), $fresh$ret_5);
 }
 
 ;;
@@ -640,7 +654,7 @@ _ %owner() method_id(83229) {
     __tact_context_sender = msg_sender_addr;
     
     ;; Load contract data
-    var ($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions) = $ProductivityEscrow$_contract_load();
+    var ($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB) = $ProductivityEscrow$_contract_load();
     
     ;; Handle bounced messages
     if (msg_bounced) { return (); }
@@ -664,7 +678,7 @@ _ %owner() method_id(83229) {
         int $contribKey = $Cell$_fun_hash($Builder$_fun_endCell($Builder$_fun_storeAddress(store_uint($global_beginCell(), $idx, 32), $ctx'sender)));
         $self'sponsorContributions~__tact_dict_set_int_int(257, $contribKey, $deposit, 257);
         $self'challengeCount = ($idx + 1);
-        $ProductivityEscrow$_contract_store(($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions));
+        $ProductivityEscrow$_contract_store(($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB));
         return ();
     }
     
@@ -689,7 +703,7 @@ _ %owner() method_id(83229) {
             $prev = __tact_not_null($existing);
         }
         $self'sponsorContributions~__tact_dict_set_int_int(257, $contribKey, ($prev + $addedDeposit), 257);
-        $ProductivityEscrow$_contract_store(($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions));
+        $ProductivityEscrow$_contract_store(($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB));
         return ();
     }
     
@@ -704,7 +718,7 @@ _ %owner() method_id(83229) {
         var ($cd'sponsor, $cd'beneficiary, $cd'challengeId, $cd'totalDeposit, $cd'totalCheckpoints, $cd'amountPerCheckpoint, $cd'claimedCount, $cd'endDate, $cd'createdAt, $cd'active, $cd'unlisted) = $ChallengeData$_not_null($challenge);
         throw_unless(8433, $cd'active);
         throw_unless(55597, ( equal_slices_bits($ctx'sender, $cd'beneficiary) ));
-        throw_unless(61368, ($global_now() <= $cd'endDate));
+        throw_unless(12222, ($global_now() > $cd'endDate));
         throw_unless(43091, ($msg'checkpointIndex < $cd'totalCheckpoints));
         int $claimKey = $Cell$_fun_hash($Builder$_fun_endCell(store_uint(store_uint($global_beginCell(), $msg'challengeIdx, 32), $msg'checkpointIndex, 32)));
         throw_unless(57829, null?(__tact_dict_get_int_int($self'claimedCheckpoints, 257, $claimKey, 1)));
@@ -715,7 +729,7 @@ _ %owner() method_id(83229) {
         int $updatedActive = ($newClaimedCount < $cd'totalCheckpoints);
         $self'challenges~__tact_dict_set_int_cell(257, $msg'challengeIdx, $ChallengeData$_store_cell($ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_createdAt_active_unlisted($cd'sponsor, $cd'beneficiary, $cd'challengeId, $cd'totalDeposit, $cd'totalCheckpoints, $cd'amountPerCheckpoint, $newClaimedCount, $cd'endDate, $cd'createdAt, $updatedActive, $cd'unlisted), begin_cell()));
         $global_send($SendParameters$_constructor_to_value_mode_body($cd'beneficiary, $cd'amountPerCheckpoint, 1, __gen_cell_cell_73cce4137c13ab56ed4a32de2e994824158e6c30cd2b751013ced8be5cbcfd14()));
-        $ProductivityEscrow$_contract_store(($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions));
+        $ProductivityEscrow$_contract_store(($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB));
         return ();
     }
     
@@ -733,17 +747,28 @@ _ %owner() method_id(83229) {
         int $refundAmount = ($unclaimedCheckpoints * $cd'amountPerCheckpoint);
         $self'challenges~__tact_dict_set_int_cell(257, $msg'challengeIdx, $ChallengeData$_store_cell($ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_createdAt_active_unlisted($cd'sponsor, $cd'beneficiary, $cd'challengeId, $cd'totalDeposit, $cd'totalCheckpoints, $cd'amountPerCheckpoint, $cd'claimedCount, $cd'endDate, $cd'createdAt, false, $cd'unlisted), begin_cell()));
         if (($refundAmount > 0)) {
-            $global_send($SendParameters$_constructor_to_value_mode_body($cd'sponsor, $refundAmount, 1, __gen_cell_cell_c1756e1ba02e546d12975ca591114ee61d58c6d98b7093e17d86e734cf91cd49()));
+            if (( equal_slices_bits($cd'sponsor, $cd'beneficiary) )) {
+                int $amountA = (($refundAmount * 20) / 100);
+                int $amountB = ($refundAmount - $amountA);
+                if (($amountA > 0)) {
+                    $global_send($SendParameters$_constructor_to_value_mode_body($self'feeWalletA, $amountA, 1, __gen_cell_cell_07af770134ea3f44582da237cd887f07f5ed9301779ffedf0a799b05a2c10877()));
+                }
+                if (($amountB > 0)) {
+                    $global_send($SendParameters$_constructor_to_value_mode_body($self'feeWalletB, $amountB, 1, __gen_cell_cell_07af770134ea3f44582da237cd887f07f5ed9301779ffedf0a799b05a2c10877()));
+                }
+            } else {
+                $global_send($SendParameters$_constructor_to_value_mode_body($cd'sponsor, $refundAmount, 1, __gen_cell_cell_c1756e1ba02e546d12975ca591114ee61d58c6d98b7093e17d86e734cf91cd49()));
+            }
         }
-        $ProductivityEscrow$_contract_store(($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions));
+        $ProductivityEscrow$_contract_store(($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB));
         return ();
     }
     
     ;; Receive Deploy message
     if (op == 0x946a98b6) {
         var $deploy'queryId = in_msg~load_uint(64);
-        ($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions)~$ProductivityEscrow$_fun_notify($DeployOk$_store_cell($DeployOk$_constructor_queryId($deploy'queryId), begin_cell()));
-        $ProductivityEscrow$_contract_store(($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions));
+        ($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB)~$ProductivityEscrow$_fun_notify($DeployOk$_store_cell($DeployOk$_constructor_queryId($deploy'queryId), begin_cell()));
+        $ProductivityEscrow$_contract_store(($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'claimedCheckpoints, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB));
         return ();
     }
     

@@ -29,6 +29,7 @@ export function ChallengeDetail() {
   const [verification, setVerification] = useState<VerificationResult | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [claiming, setClaiming] = useState(false);
+  const [claimCount, setClaimCount] = useState(1);
   const [refunding, setRefunding] = useState(false);
   const [fundAmount, setFundAmount] = useState("");
   const [funding, setFunding] = useState(false);
@@ -104,37 +105,34 @@ export function ChallengeDetail() {
   async function handleClaim() {
     if (!challenge || !userAddress) return;
 
-    // Find first unclaimed checkpoint
-    const checkpointIndex = claimedMap.findIndex((c) => !c);
-    if (checkpointIndex === -1) {
-      alert("All checkpoints already claimed.");
-      return;
-    }
-
     setClaiming(true);
     try {
-      // Get signed proof from backend (backend reads challenge data from chain)
+      // Backend verifies performance and returns signed proofs for all earned unclaimed checkpoints
       const proof = await backendApi.signProof({
         challengeIdx: idx,
-        checkpointIndex,
         beneficiaryAddress: userAddress,
         duolingoUsername: duolingoInput || undefined,
       });
 
-      // Send claim transaction
-      const body = buildClaimCheckpointBody(idx, checkpointIndex, proof.signature);
+      if (proof.newCheckpoints.length === 0) {
+        alert("No new checkpoints to claim.");
+        return;
+      }
+
+      // Build one message per checkpoint, all sent in a single wallet confirmation
+      const messages = proof.newCheckpoints.map((cp) => ({
+        address: CONTRACT_ADDRESS,
+        amount: toNano("0.05").toString(),
+        payload: buildClaimCheckpointBody(idx, cp.checkpointIndex, cp.signature)
+          .toBoc()
+          .toString("base64"),
+      }));
+
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
-        messages: [
-          {
-            address: CONTRACT_ADDRESS,
-            amount: toNano("0.05").toString(),
-            payload: body.toBoc().toString("base64"),
-          },
-        ],
+        messages,
       });
 
-      // Reload after claim
       await loadChallenge();
     } catch (e: any) {
       if (!e.message?.includes("Cancelled") && !e.message?.includes("canceled")) {
@@ -417,7 +415,7 @@ export function ChallengeDetail() {
         </div>
       </section>
 
-      {appKey === "DUOLINGO" && challenge.active && !expired && isBeneficiary && (
+      {appKey === "DUOLINGO" && expired && challenge.active && isBeneficiary && (
         <section className="surface section-panel action-panel">
           <div className="section-header">
             <div>
@@ -435,12 +433,14 @@ export function ChallengeDetail() {
         </section>
       )}
 
-      {challenge.active && !expired && isBeneficiary && (
+      {expired && challenge.active && isBeneficiary && (
         <section className="surface surface-accent section-panel action-panel">
           <div className="section-header">
             <div>
-              <h2 className="section-title">Beneficiary actions</h2>
-              <p className="section-note">Check progress first if you want feedback, then submit the next claim through the wallet.</p>
+              <h2 className="section-title">Claim your rewards</h2>
+              <p className="section-note">
+                The challenge has ended. Verify your progress and claim all earned checkpoints in one transaction.
+              </p>
             </div>
           </div>
           <div className="button-row">
@@ -448,7 +448,7 @@ export function ChallengeDetail() {
               {verifying ? "Checking..." : "Verify progress"}
             </button>
             <button className="button-primary" onClick={handleClaim} disabled={claiming}>
-              {claiming ? "Claiming..." : "Claim next checkpoint"}
+              {claiming ? "Claiming..." : "Claim earned checkpoints"}
             </button>
           </div>
         </section>

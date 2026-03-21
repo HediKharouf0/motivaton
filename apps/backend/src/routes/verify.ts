@@ -33,23 +33,22 @@ verifyRouter.post("/check", async (req, res) => {
 /**
  * POST /api/verify/sign-proof
  * Reads the challenge from the contract to get the real app/action/count,
- * verifies progress, then returns a signed proof.
+ * verifies progress, then returns signed proofs for all earned checkpoints.
  *
- * The verification threshold is per-checkpoint: for checkpoint N (0-indexed),
- * the required count is (N + 1).
+ * Claims are only valid after the challenge has ended. The number of checkpoints
+ * earned equals the verified completion count (capped at totalCheckpoints).
  *
  * Body: {
  *   challengeIdx,        // on-chain challenge index
- *   checkpointIndex,     // which checkpoint to claim
  *   beneficiaryAddress,  // must match on-chain beneficiary
  *   duolingoUsername?     // for Duolingo verification
  * }
  */
 verifyRouter.post("/sign-proof", async (req, res) => {
-  const { challengeIdx, checkpointIndex, beneficiaryAddress, duolingoUsername } = req.body;
+  const { challengeIdx, beneficiaryAddress, duolingoUsername } = req.body;
 
-  if (challengeIdx == null || checkpointIndex == null || !beneficiaryAddress) {
-    res.status(400).json({ error: "Missing required fields: challengeIdx, checkpointIndex, beneficiaryAddress." });
+  if (challengeIdx == null || !beneficiaryAddress) {
+    res.status(400).json({ error: "Missing required fields: challengeIdx, beneficiaryAddress." });
     return;
   }
 
@@ -79,13 +78,8 @@ verifyRouter.post("/sign-proof", async (req, res) => {
     return;
   }
 
-  if (Date.now() / 1000 > challenge.endDate) {
-    res.status(400).json({ error: "Challenge has expired." });
-    return;
-  }
-
-  if (checkpointIndex >= challenge.totalCheckpoints) {
-    res.status(400).json({ error: "Invalid checkpoint index." });
+  if (Date.now() / 1000 <= challenge.endDate) {
+    res.status(400).json({ error: "Challenge has not ended yet. Claims are only available after the deadline." });
     return;
   }
 
@@ -103,35 +97,46 @@ verifyRouter.post("/sign-proof", async (req, res) => {
     return;
   }
 
-  // Per-checkpoint threshold: checkpoint N requires at least (N + 1) completions
-  const requiredForCheckpoint = checkpointIndex + 1;
-
+  // Verify with the full checkpoint count to determine how many were earned
   const result = await verifier.verify({
     app,
     action,
-    count: requiredForCheckpoint,
+    count: challenge.totalCheckpoints,
     duolingoUsername,
   });
 
-  if (!result.verified) {
+  // Earned checkpoints = min(currentCount, totalCheckpoints)
+  const earnedCount = Math.min(result.currentCount, challenge.totalCheckpoints);
+  // Only sign for checkpoints not yet claimed
+  const unclaimedEarned: number[] = [];
+  for (let i = challenge.claimedCount; i < earnedCount; i++) {
+    unclaimedEarned.push(i);
+  }
+
+  if (unclaimedEarned.length === 0) {
     res.status(403).json({
-      error: "Verification failed.",
+      error: "No new checkpoints to claim.",
       details: {
         ...result,
-        requiredForCheckpoint,
-        message: `Checkpoint ${checkpointIndex} requires at least ${requiredForCheckpoint} completions. ${result.message}`,
+        earnedCount,
+        alreadyClaimed: challenge.claimedCount,
+        message: `Earned ${earnedCount}/${challenge.totalCheckpoints} checkpoints, ${challenge.claimedCount} already claimed.`,
       },
     });
     return;
   }
 
-  const signature = signCheckpointProof(challengeIdx, checkpointIndex, beneficiary);
+  const signatures = unclaimedEarned.map((cpIdx) => ({
+    checkpointIndex: cpIdx,
+    signature: signCheckpointProof(challengeIdx, cpIdx, beneficiary).toString("base64"),
+  }));
 
   res.json({
     verified: true,
-    signature: signature.toString("base64"),
+    earnedCount,
+    alreadyClaimed: challenge.claimedCount,
+    newCheckpoints: signatures,
     challengeIdx,
-    checkpointIndex,
     beneficiaryAddress,
   });
 });
