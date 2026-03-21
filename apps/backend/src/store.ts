@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { mkdirSync, existsSync, accessSync, constants, statSync, writeFileSync, readdirSync } from "fs";
+import { mkdirSync, existsSync, accessSync, constants, statSync, writeFileSync, readFileSync, readdirSync, unlinkSync } from "fs";
 import { resolve, dirname } from "path";
 
 function getDbPath(): string {
@@ -24,12 +24,30 @@ function getDb(): Database.Database {
     } catch (e) {
       console.error(`[store] dir access check failed:`, e);
     }
-    // Try writing a plain test file
+    // Check the db file itself
+    if (existsSync(dbPath)) {
+      try {
+        const fstat = statSync(dbPath);
+        console.log(`[store] db file size=${fstat.size} mode=${fstat.mode.toString(8)} uid=${fstat.uid} gid=${fstat.gid}`);
+        const header = readFileSync(dbPath, { encoding: null }).subarray(0, 16);
+        console.log(`[store] db file header: ${header.toString("utf8").replace(/[^\x20-\x7E]/g, "?")} (hex: ${header.toString("hex")})`);
+      } catch (e) {
+        console.error(`[store] db file stat/read failed:`, e);
+      }
+    } else {
+      console.log(`[store] db file does not exist yet, will be created`);
+    }
+
+    // Try creating a fresh test SQLite db
+    const testDbPath = resolve(dir, "__test__.db");
     try {
-      writeFileSync(resolve(dir, "__test_write__"), "ok");
-      console.log(`[store] test file write succeeded`);
+      const testDb = new Database(testDbPath);
+      testDb.exec("CREATE TABLE t (id INTEGER)");
+      testDb.close();
+      unlinkSync(testDbPath);
+      console.log(`[store] test SQLite db at ${testDbPath} SUCCEEDED`);
     } catch (e) {
-      console.error(`[store] test file write FAILED:`, e);
+      console.error(`[store] test SQLite db at ${testDbPath} FAILED:`, e);
     }
   } else {
     mkdirSync(dir, { recursive: true });
