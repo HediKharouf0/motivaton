@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { mkdirSync, existsSync, accessSync, constants, statSync, writeFileSync, readFileSync, readdirSync, unlinkSync } from "fs";
+import { mkdirSync, existsSync, statSync, rmSync } from "fs";
 import { resolve, dirname } from "path";
 
 function getDbPath(): string {
@@ -8,96 +8,45 @@ function getDbPath(): string {
 
 function getDb(): Database.Database {
   const dbPath = getDbPath();
-  console.log(`[store] Opening SQLite at: ${dbPath} (DATABASE_PATH=${process.env.DATABASE_PATH || "(not set)"})`);
+  console.log(`[store] Opening SQLite at: ${dbPath}`);
   const dir = dirname(dbPath);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
-  // Diagnostic: check mount/directory state
-  console.log(`[store] dir="${dir}" exists=${existsSync(dir)}`);
-  if (existsSync(dir)) {
-    try {
-      const stat = statSync(dir);
-      console.log(`[store] dir isDirectory=${stat.isDirectory()} mode=${stat.mode.toString(8)} uid=${stat.uid} gid=${stat.gid}`);
-      const contents = readdirSync(dir);
-      console.log(`[store] dir contents: ${JSON.stringify(contents)}`);
-      accessSync(dir, constants.W_OK);
-      console.log(`[store] dir is writable`);
-    } catch (e) {
-      console.error(`[store] dir access check failed:`, e);
-    }
-    // Check the db file itself
-    if (existsSync(dbPath)) {
-      try {
-        const fstat = statSync(dbPath);
-        console.log(`[store] db file size=${fstat.size} mode=${fstat.mode.toString(8)} uid=${fstat.uid} gid=${fstat.gid}`);
-        const header = readFileSync(dbPath, { encoding: null }).subarray(0, 16);
-        console.log(`[store] db file header: ${header.toString("utf8").replace(/[^\x20-\x7E]/g, "?")} (hex: ${header.toString("hex")})`);
-      } catch (e) {
-        console.error(`[store] db file stat/read failed:`, e);
-      }
-    } else {
-      console.log(`[store] db file does not exist yet, will be created`);
-    }
-
-    // Try creating a fresh test SQLite db
-    const testDbPath = resolve(dir, "__test__.db");
-    try {
-      const testDb = new Database(testDbPath);
-      testDb.exec("CREATE TABLE t (id INTEGER)");
-      testDb.close();
-      unlinkSync(testDbPath);
-      console.log(`[store] test SQLite db at ${testDbPath} SUCCEEDED`);
-    } catch (e) {
-      console.error(`[store] test SQLite db at ${testDbPath} FAILED:`, e);
-    }
-  } else {
-    mkdirSync(dir, { recursive: true });
-    console.log(`[store] created dir="${dir}"`);
+  // Guard: if dbPath is a directory (broken mount artifact), remove it
+  if (existsSync(dbPath) && statSync(dbPath).isDirectory()) {
+    console.warn(`[store] ${dbPath} is a directory, not a file — removing so SQLite can create the db`);
+    rmSync(dbPath, { recursive: true });
   }
 
-  const maxRetries = 5;
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const db = new Database(dbPath);
-      db.pragma("journal_mode = WAL");
-      db.pragma("foreign_keys = ON");
+  const db = new Database(dbPath);
+  db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
 
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS accounts (
-          wallet_address TEXT PRIMARY KEY,
-          github_access_token TEXT,
-          github_username TEXT
-        );
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS accounts (
+      wallet_address TEXT PRIMARY KEY,
+      github_access_token TEXT,
+      github_username TEXT
+    );
 
-        CREATE TABLE IF NOT EXISTS progress (
-          challenge_idx INTEGER PRIMARY KEY,
-          count INTEGER NOT NULL DEFAULT 0
-        );
+    CREATE TABLE IF NOT EXISTS progress (
+      challenge_idx INTEGER PRIMARY KEY,
+      count INTEGER NOT NULL DEFAULT 0
+    );
 
-        CREATE TABLE IF NOT EXISTS processed_events (
-          wallet_address TEXT NOT NULL,
-          event_id TEXT NOT NULL,
-          action TEXT NOT NULL,
-          timestamp INTEGER NOT NULL,
-          PRIMARY KEY (wallet_address, event_id)
-        );
+    CREATE TABLE IF NOT EXISTS processed_events (
+      wallet_address TEXT NOT NULL,
+      event_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      timestamp INTEGER NOT NULL,
+      PRIMARY KEY (wallet_address, event_id)
+    );
 
-        CREATE INDEX IF NOT EXISTS idx_processed_events_timestamp
-          ON processed_events (timestamp);
-      `);
+    CREATE INDEX IF NOT EXISTS idx_processed_events_timestamp
+      ON processed_events (timestamp);
+  `);
 
-      return db;
-    } catch (err: unknown) {
-      const code = err instanceof Error ? (err as Error & { code?: string }).code : undefined;
-      if (code === "SQLITE_CANTOPEN" && attempt < maxRetries) {
-        console.warn(`[store] SQLITE_CANTOPEN on attempt ${attempt}/${maxRetries}, retrying in ${attempt}s...`);
-        const waitMs = attempt * 1000;
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, waitMs);
-        continue;
-      }
-      throw err;
-    }
-  }
-  throw new Error("unreachable");
+  return db;
 }
 
 let _db: Database.Database | null = null;
