@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { mkdirSync, existsSync } from "fs";
+import { mkdirSync, existsSync, accessSync, constants, statSync, writeFileSync, readdirSync } from "fs";
 import { resolve, dirname } from "path";
 
 function getDbPath(): string {
@@ -10,7 +10,31 @@ function getDb(): Database.Database {
   const dbPath = getDbPath();
   console.log(`[store] Opening SQLite at: ${dbPath} (DATABASE_PATH=${process.env.DATABASE_PATH || "(not set)"})`);
   const dir = dirname(dbPath);
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+  // Diagnostic: check mount/directory state
+  console.log(`[store] dir="${dir}" exists=${existsSync(dir)}`);
+  if (existsSync(dir)) {
+    try {
+      const stat = statSync(dir);
+      console.log(`[store] dir isDirectory=${stat.isDirectory()} mode=${stat.mode.toString(8)} uid=${stat.uid} gid=${stat.gid}`);
+      const contents = readdirSync(dir);
+      console.log(`[store] dir contents: ${JSON.stringify(contents)}`);
+      accessSync(dir, constants.W_OK);
+      console.log(`[store] dir is writable`);
+    } catch (e) {
+      console.error(`[store] dir access check failed:`, e);
+    }
+    // Try writing a plain test file
+    try {
+      writeFileSync(resolve(dir, "__test_write__"), "ok");
+      console.log(`[store] test file write succeeded`);
+    } catch (e) {
+      console.error(`[store] test file write FAILED:`, e);
+    }
+  } else {
+    mkdirSync(dir, { recursive: true });
+    console.log(`[store] created dir="${dir}"`);
+  }
 
   const maxRetries = 5;
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
