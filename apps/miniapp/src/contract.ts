@@ -5,7 +5,8 @@ const TON_ENDPOINT = import.meta.env.VITE_TON_ENDPOINT || "https://testnet.tonce
 const TON_API_KEY = import.meta.env.VITE_TON_API_KEY || "";
 
 // Opcodes from compiled Tact ABI
-const OP_CREATE_CHALLENGE = 0xf05423d0;
+const OP_CREATE_CHALLENGE = 0xc2860504;
+const OP_ADD_FUNDS = 0x48402acd;
 const OP_CLAIM_CHECKPOINT = 0x7b562c3f;
 const OP_REFUND_UNCLAIMED = 0x70ccaed4;
 
@@ -18,7 +19,98 @@ export interface OnChainChallenge {
   amountPerCheckpoint: bigint;
   claimedCount: number;
   endDate: number;
+  createdAt: number;
   active: boolean;
+  unlisted: boolean;
+}
+
+// Toncenter getter responses vary between object and array-based stack item shapes.
+// Normalize those shapes here so the UI doesn't depend on one specific JSON encoding.
+function getStackItemType(item: unknown): string | undefined {
+  if (Array.isArray(item)) return typeof item[0] === "string" ? item[0] : undefined;
+  if (!item || typeof item !== "object") return undefined;
+  if (typeof (item as { type?: unknown }).type === "string") return (item as { type: string }).type;
+  if ("number" in item) return "num";
+  if ("slice" in item) return "slice";
+  if ("cell" in item) return "cell";
+  if ("tuple" in item || "elements" in item) return "tuple";
+  return undefined;
+}
+
+function getStackItemValue(item: unknown): unknown {
+  if (Array.isArray(item)) return item[1];
+  if (item && typeof item === "object" && "value" in item) {
+    return (item as { value: unknown }).value;
+  }
+  return item;
+}
+
+function getTupleElements(item: unknown): unknown[] | null {
+  const value = getStackItemValue(item);
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === "object" && Array.isArray((value as { elements?: unknown[] }).elements)) {
+    return (value as { elements: unknown[] }).elements;
+  }
+  if (item && typeof item === "object" && Array.isArray((item as { elements?: unknown[] }).elements)) {
+    return (item as { elements: unknown[] }).elements;
+  }
+  return null;
+}
+
+function getSliceBase64(item: unknown): string {
+  const value = getStackItemValue(item);
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && typeof (value as { bytes?: unknown }).bytes === "string") {
+    return (value as { bytes: string }).bytes;
+  }
+  if (item && typeof item === "object") {
+    const nestedSlice = (item as { slice?: { bytes?: string } }).slice;
+    if (typeof nestedSlice?.bytes === "string") return nestedSlice.bytes;
+    const nestedCell = (item as { cell?: { bytes?: string } }).cell;
+    if (typeof nestedCell?.bytes === "string") return nestedCell.bytes;
+  }
+  throw new Error("Unexpected getter slice shape");
+}
+
+function getBigIntValue(item: unknown): bigint {
+  const value = getStackItemValue(item);
+  if (typeof value === "string" || typeof value === "number") return BigInt(value);
+  if (value && typeof value === "object") {
+    const nestedNumber = (value as { number?: unknown }).number;
+    if (typeof nestedNumber === "string" || typeof nestedNumber === "number") {
+      return BigInt(nestedNumber);
+    }
+  }
+  if (item && typeof item === "object") {
+    const nestedNumber = (item as { number?: { number?: string | number } }).number?.number;
+    if (typeof nestedNumber === "string" || typeof nestedNumber === "number") {
+      return BigInt(nestedNumber);
+    }
+  }
+  throw new Error("Unexpected getter number shape");
+}
+
+function getBooleanValue(item: unknown): boolean {
+  const value = getStackItemValue(item);
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (value === "true") return true;
+    if (value === "false") return false;
+  }
+  if (value && typeof value === "object") {
+    const nestedBoolean = (value as { boolean?: unknown }).boolean;
+    if (typeof nestedBoolean === "boolean") return nestedBoolean;
+    const nestedValue = (value as { value?: unknown }).value;
+    if (typeof nestedValue === "boolean") return nestedValue;
+  }
+  if (item && typeof item === "object") {
+    const directBoolean = (item as { boolean?: boolean | { value?: boolean } }).boolean;
+    if (typeof directBoolean === "boolean") return directBoolean;
+    if (directBoolean && typeof directBoolean === "object" && typeof directBoolean.value === "boolean") {
+      return directBoolean.value;
+    }
+  }
+  return getBigIntValue(item) !== 0n;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,18 +137,23 @@ function parseString(base64Boc: string): string {
   return cell.beginParse().loadStringTail();
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseChallengeFromElements(elements: any[]): OnChainChallenge {
+export function normalizeAddress(address: string): string {
+  return Address.parse(address).toRawString();
+}
+
+function parseChallengeFromElements(elements: unknown[]): OnChainChallenge {
   return {
-    sponsor: parseAddress(elements[0].slice.bytes),
-    beneficiary: parseAddress(elements[1].slice.bytes),
-    challengeId: parseString(elements[2].slice.bytes),
-    totalDeposit: BigInt(elements[3].number.number),
-    totalCheckpoints: Number(elements[4].number.number),
-    amountPerCheckpoint: BigInt(elements[5].number.number),
-    claimedCount: Number(elements[6].number.number),
-    endDate: Number(elements[7].number.number),
-    active: elements[8].number.number === "-1",
+    sponsor: parseAddress(getSliceBase64(elements[0])),
+    beneficiary: parseAddress(getSliceBase64(elements[1])),
+    challengeId: parseString(getSliceBase64(elements[2])),
+    totalDeposit: getBigIntValue(elements[3]),
+    totalCheckpoints: Number(getBigIntValue(elements[4])),
+    amountPerCheckpoint: getBigIntValue(elements[5]),
+    claimedCount: Number(getBigIntValue(elements[6])),
+    endDate: Number(getBigIntValue(elements[7])),
+    createdAt: Number(getBigIntValue(elements[8])),
+    active: getBooleanValue(elements[9]),
+    unlisted: getBooleanValue(elements[10]),
   };
 }
 
@@ -66,7 +163,7 @@ export async function getChallengeCount(): Promise<number> {
     method: "challengeCount",
     stack: [],
   });
-  return Number(result.stack[0][1]);
+  return Number(getBigIntValue(result.stack[0]));
 }
 
 export async function getChallenge(idx: number): Promise<OnChainChallenge | null> {
@@ -76,9 +173,10 @@ export async function getChallenge(idx: number): Promise<OnChainChallenge | null
     stack: [["num", String(idx)]],
   });
   const entry = result.stack[0];
-  // entry is ["tuple", { elements: [...] }] for present, or ["num", "0"] for null
-  if (entry[0] !== "tuple") return null;
-  return parseChallengeFromElements(entry[1].elements);
+  if (getStackItemType(entry) !== "tuple") return null;
+  const elements = getTupleElements(entry);
+  if (!elements) return null;
+  return parseChallengeFromElements(elements);
 }
 
 export async function getAllChallenges(): Promise<(OnChainChallenge & { index: number })[]> {
@@ -97,17 +195,15 @@ export async function isCheckpointClaimed(challengeIdx: number, checkpointIdx: n
     method: "isCheckpointClaimed",
     stack: [["num", String(challengeIdx)], ["num", String(checkpointIdx)]],
   });
-  return result.stack[0][1] === "-1";
+  return getBooleanValue(result.stack[0]);
 }
 
-/**
- * CreateChallenge: opcode(32) | beneficiary(addr) | challengeId(string ref tail) | totalCheckpoints(uint32) | endDate(uint64)
- */
 export function buildCreateChallengeBody(
   beneficiary: string,
   challengeId: string,
   totalCheckpoints: number,
   endDate: number,
+  unlisted: boolean,
 ) {
   return beginCell()
     .storeUint(OP_CREATE_CHALLENGE, 32)
@@ -115,7 +211,28 @@ export function buildCreateChallengeBody(
     .storeStringRefTail(challengeId)
     .storeUint(totalCheckpoints, 32)
     .storeUint(endDate, 64)
+    .storeBit(unlisted)
     .endCell();
+}
+
+export function buildAddFundsBody(challengeIdx: number) {
+  return beginCell()
+    .storeUint(OP_ADD_FUNDS, 32)
+    .storeUint(challengeIdx, 32)
+    .endCell();
+}
+
+export async function getSponsorContribution(challengeIdx: number, sponsorAddress: string): Promise<bigint> {
+  const addrCell = beginCell().storeAddress(Address.parse(sponsorAddress)).endCell();
+  const result = await rpcCall("runGetMethod", {
+    address: CONTRACT_ADDRESS,
+    method: "sponsorContribution",
+    stack: [
+      ["num", String(challengeIdx)],
+      ["tvm.Slice", addrCell.toBoc().toString("base64")],
+    ],
+  });
+  return getBigIntValue(result.stack[0]);
 }
 
 /**

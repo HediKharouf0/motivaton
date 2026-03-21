@@ -1,5 +1,6 @@
 // automatically generated from `@stdlib/std/stdlib.fc` `/Users/antoinebastide/Documents/Github/Perso/motivaton/contracts/productivity-escrow/build/ProductivityEscrow_ProductivityEscrow.fc` 
 PROGRAM{
+  DECLPROC __tact_not_null
   DECLPROC __tact_context_get
   DECLPROC __tact_context_get_sender
   DECLPROC __tact_dict_get_int_int
@@ -27,16 +28,18 @@ PROGRAM{
   DECLPROC $ProductivityEscrow$_fun_challengeCount
   DECLPROC $ProductivityEscrow$_fun_challenge
   DECLPROC $ProductivityEscrow$_fun_isCheckpointClaimed
+  DECLPROC $ProductivityEscrow$_fun_sponsorContribution
   DECLPROC $ProductivityEscrow$_fun_verifierPublicKey
   DECLPROC $MessageParameters$_constructor_bounce_to_value_mode_body
   DECLPROC $ProductivityEscrow$_fun_notify
   DECLPROC $ProductivityEscrow$_fun_owner
-  DECLPROC $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_active
+  DECLPROC $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_createdAt_active_unlisted
   DECLPROC $SendParameters$_constructor_to_value_mode_body
   DECLPROC $DeployOk$_constructor_queryId
   80868 DECLMETHOD %challengeCount
   81975 DECLMETHOD %challenge
   96514 DECLMETHOD %isCheckpointClaimed
+  116624 DECLMETHOD %sponsorContribution
   101365 DECLMETHOD %verifierPublicKey
   83229 DECLMETHOD %owner
   DECLPROC recv_internal
@@ -45,6 +48,11 @@ PROGRAM{
   DECLGLOBVAR __tact_context_sender
   DECLGLOBVAR __tact_child_contract_codes
   DECLGLOBVAR __tact_randomized
+  __tact_not_null PROCINLINE:<{
+    DUP
+    ISNULL
+    128 THROWIF
+  }>
   __tact_context_get PROCINLINE:<{
     __tact_context GETGLOB
     4 UNTUPLE
@@ -115,31 +123,34 @@ PROGRAM{
     $DeployOk$_store INLINECALLDICT
     ENDC
   }>
-  $ChallengeData$_store PROCINLINE:<{
-    s8 s9 XCHG2
+  $ChallengeData$_store PROCREF:<{
+    s10 s11 XCHG2
     STSLICE
-    s1 s6 XCHG
+    s1 s8 XCHG
     STSLICE
-    s0 s4 XCHG
+    s0 s6 XCHG
     NEWC
     STSLICE
-    s1 s4 XCHG
+    s1 s6 XCHG
     STBREFR
-    ROT
+    s0 s4 XCHG2
     STVARUINT16
+    s1 s2 XCHG
     32 STU
     SWAP
     STVARUINT16
     32 STU
     64 STU
+    64 STU
+    1 STI
     1 STI
   }>
   $ChallengeData$_store_cell PROCINLINE:<{
-    9 -ROLL
+    11 -ROLL
     $ChallengeData$_store INLINECALLDICT
     ENDC
   }>
-  $ChallengeData$_load PROCINLINE:<{
+  $ChallengeData$_load PROCREF:<{
     LDMSGADDR
     LDMSGADDR
     LDREF
@@ -151,11 +162,13 @@ PROGRAM{
     LDVARUINT16
     32 LDU
     64 LDU
+    64 LDU
     1 LDI
-    9 -ROLL
+    1 LDI
+    11 -ROLL
   }>
   $ChallengeData$_as_optional PROCINLINE:<{
-        9 TUPLE
+        11 TUPLE
   }>
   $ChallengeData$_load_opt PROCINLINE:<{
     DUP
@@ -166,26 +179,39 @@ PROGRAM{
     }>ELSE<{
       CTOS
       $ChallengeData$_load INLINECALLDICT
-      1 9 BLKDROP2
+      1 11 BLKDROP2
       $ChallengeData$_as_optional INLINECALLDICT
     }>
   }>
   $ProductivityEscrow$_store PROCINLINE:<{
-    s4 s5 XCHG2
+    s5 s6 XCHG2
     STSLICE
-    s1 s2 XCHG
+    s1 s3 XCHG
     256 STU
     32 STU
     STDICT
+    SWAP
+    NEWC
     STDICT
+    s1 s2 XCHG
+    STDICT
+    STBREFR
   }>
   $ProductivityEscrow$_load PROCINLINE:<{
     LDMSGADDR
     256 LDU
     32 LDU
     LDDICT
+    LDREF
+    SWAP
+    CTOS
     LDDICT
-    5 -ROLL
+    LDDICT
+    DROP
+    s2 s6 XCHG
+    s2 s5 XCHG
+    s2 s4 XCHG
+    s2 s3 XCHG
   }>
   $Context$_get_value PROCINLINE:<{
     s1 s3 XCHG
@@ -195,10 +221,10 @@ PROGRAM{
     DUP
     ISNULL
     128 THROWIF
-        9 UNTUPLE
+        11 UNTUPLE
   }>
   $ChallengeData$_to_tuple PROCINLINE:<{
-        9 TUPLE
+        11 TUPLE
   }>
   $ChallengeData$_to_opt_tuple PROCINLINE:<{
     DUP
@@ -231,6 +257,7 @@ PROGRAM{
     0 PUSHINT
     PUSHNULL
     PUSHNULL
+    PUSHNULL
   }>
   $ProductivityEscrow$_contract_load PROCINLINE:<{
     c4 PUSH
@@ -239,7 +266,7 @@ PROGRAM{
     SWAP
     IF:<{
       $ProductivityEscrow$_load INLINECALLDICT
-      1 5 BLKDROP2
+      1 6 BLKDROP2
     }>ELSE<{
       $ProductivityEscrow$init$_load INLINECALLDICT
       s0 s2 XCHG
@@ -253,17 +280,17 @@ PROGRAM{
     TRUE
     SWAP
     1 STI
-    5 -ROLL
+    6 -ROLL
     $ProductivityEscrow$_store INLINECALLDICT
     ENDC
     c4 POP
   }>
   $ProductivityEscrow$_fun_challengeCount PROCREF:<{
-    s2 PUSH
+    s3 PUSH
   }>
   $ProductivityEscrow$_fun_challenge PROCREF:<{
     257 PUSHINT
-    s3 PUSH
+    s4 PUSH
     s0 s2 XCHG
     __tact_dict_get_int_cell INLINECALLDICT
     $ChallengeData$_load_opt INLINECALLDICT
@@ -276,15 +303,36 @@ PROGRAM{
         ENDC
         HASHCU
     257 PUSHINT
-    s2 PUSH
+    s3 PUSH
     s0 s2 XCHG
     1 PUSHINT
     __tact_dict_get_int_int INLINECALLDICT
     ISNULL
     NOT
   }>
+  $ProductivityEscrow$_fun_sponsorContribution PROCREF:<{
+        NEWC
+    s1 s2 XCHG
+    32 STU
+    SWAP
+        STSLICER
+        ENDC
+        HASHCU
+    257 PUSHINT
+    s0 s2 PUSH2
+    s3 s3 XCHG2
+    __tact_dict_get_int_int INLINECALLDICT
+    DUP
+    ISNULL
+    NOT
+    IFJMP:<{
+      __tact_not_null INLINECALLDICT
+    }>
+    DROP
+    0 PUSHINT
+  }>
   $ProductivityEscrow$_fun_verifierPublicKey PROCREF:<{
-    s3 PUSH
+    s4 PUSH
   }>
   $MessageParameters$_constructor_bounce_to_value_mode_body PROCINLINE:<{
     s3 s3 XCHG2
@@ -317,9 +365,9 @@ PROGRAM{
         SENDRAWMSG
   }>
   $ProductivityEscrow$_fun_owner PROCREF:<{
-    s4 PUSH
+    s5 PUSH
   }>
-  $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_active PROCINLINE:<{
+  $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_createdAt_active_unlisted PROCINLINE:<{
   }>
   $SendParameters$_constructor_to_value_mode_body PROCINLINE:<{
     2SWAP
@@ -333,30 +381,36 @@ PROGRAM{
   %challengeCount PROC:<{
     $ProductivityEscrow$_contract_load INLINECALLDICT
     $ProductivityEscrow$_fun_challengeCount INLINECALLDICT
-    5 1 BLKDROP2
+    6 1 BLKDROP2
   }>
   %challenge PROC:<{
     $ProductivityEscrow$_contract_load INLINECALLDICT
-    5 ROLL
+    6 ROLL
     $ProductivityEscrow$_fun_challenge INLINECALLDICT
-    5 1 BLKDROP2
+    6 1 BLKDROP2
     $ChallengeData$_to_opt_external INLINECALLDICT
   }>
   %isCheckpointClaimed PROC:<{
     $ProductivityEscrow$_contract_load INLINECALLDICT
-    2 5 BLKSWAP
+    2 6 BLKSWAP
     $ProductivityEscrow$_fun_isCheckpointClaimed INLINECALLDICT
-    5 1 BLKDROP2
+    6 1 BLKDROP2
+  }>
+  %sponsorContribution PROC:<{
+    $ProductivityEscrow$_contract_load INLINECALLDICT
+    2 6 BLKSWAP
+    $ProductivityEscrow$_fun_sponsorContribution INLINECALLDICT
+    6 1 BLKDROP2
   }>
   %verifierPublicKey PROC:<{
     $ProductivityEscrow$_contract_load INLINECALLDICT
     $ProductivityEscrow$_fun_verifierPublicKey INLINECALLDICT
-    5 1 BLKDROP2
+    6 1 BLKDROP2
   }>
   %owner PROC:<{
     $ProductivityEscrow$_contract_load INLINECALLDICT
     $ProductivityEscrow$_fun_owner INLINECALLDICT
-    5 1 BLKDROP2
+    6 1 BLKDROP2
   }>
   recv_internal PROC:<{
     SWAP
@@ -374,14 +428,14 @@ PROGRAM{
     s0 s2 XCHG
     __tact_context_sender SETGLOB
     $ProductivityEscrow$_contract_load INLINECALLDICT
-    s0 s6 XCHG
+    s0 s7 XCHG
     IFJMP:<{
-      6 BLKDROP
+      7 BLKDROP
     }>
-    s0 s4 XCHG
+    s0 s5 XCHG
     32 LDUQ 130 THROWIFNOT
     OVER
-    4032046032 PUSHINT
+    3263563012 PUSHINT
     EQUAL
     IFJMP:<{
       NIP
@@ -392,6 +446,7 @@ PROGRAM{
       SWAP
       32 LDU
       64 LDU
+      1 LDI
       DROP
       __tact_context_get INLINECALLDICT
       DROP
@@ -402,40 +457,147 @@ PROGRAM{
       GREATER
       THROWANYIFNOT
       28546 PUSHINT
-      s4 PUSH
+      s5 PUSH
       0 GTINT
       THROWANYIFNOT
           NOW
-      s3 s(-1) PUXC
+      s4 s(-1) PUXC
       GREATER
       1619 THROWIFNOT
       SWAP
       50000000 PUSHINT
       SUB
-      s0 s3 PUSH2
+      s0 s4 PUSH2
       DIV
       2253 PUSHINT
       OVER
       0 GTINT
       THROWANYIFNOT
-      s2 s5 XCHG
-      s4 s6 XCHG
-      s1 s3 s0 XCHG3
-      s1 s6 XCHG
       257 PUSHINT
       0 PUSHINT
-      s0 s8 XCHG2
+          NOW
       TRUE
-      $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_active INLINECALLDICT
+      s6 PUSH
+      s9 s6 XCPU
+      s9 s13 XCHG
+      s8 s12 XCHG
+      s6 s11 XCHG
+      s5 s11 XCHG
+      s3 s3 s13 XCHG3
+      $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_createdAt_active_unlisted INLINECALLDICT
       NEWC
       $ChallengeData$_store_cell INLINECALLDICT
-      s2 PUSH
-      s3 s6 XCHG
+      s5 PUSH
+      s3 s5 XCHG
       SWAP
       __tact_dict_set_int_cell INLINECALLDICT
-      s0 s3 XCHG
+          NEWC
+      s4 s(-1) PUXC
+      32 STU
+      s0 s3 XCHG2
+          STSLICER
+          ENDC
+          HASHCU
+      257 PUSHINT
+      DUP
+      s4 s9 XCHG
+      s1 s3 XCHG
+      __tact_dict_set_int_int INLINECALLDICT
+      SWAP
       INC
-      s0 s3 s4 XCHG3
+      s3 s5 XCHG
+      s4 s1 s3 XCHG3
+      -ROT
+      $ProductivityEscrow$_contract_store INLINECALLDICT
+    }>
+    OVER
+    1212164813 PUSHINT
+    EQUAL
+    IFJMP:<{
+      NIP
+      32 LDU
+      DROP
+      __tact_context_get INLINECALLDICT
+      DROP
+      s2 POP
+      s3 PUSH
+      257 PUSHINT
+      s4 PUSH
+      __tact_dict_get_int_cell INLINECALLDICT
+      $ChallengeData$_load_opt INLINECALLDICT
+      8346 PUSHINT
+      OVER
+      ISNULL
+      NOT
+      THROWANYIFNOT
+      $ChallengeData$_not_null INLINECALLDICT
+      s5 POP
+      8433 PUSHINT
+      OVER
+      THROWANYIFNOT
+      61368 PUSHINT
+          NOW
+      s4 PUSH
+      LEQ
+      THROWANYIFNOT
+      62674 PUSHINT
+      s12 PUSH
+      10000000 PUSHINT
+      GREATER
+      THROWANYIFNOT
+      s0 s11 XCHG
+      10000000 PUSHINT
+      SUB
+      s6 s6 XCPU
+      ADD
+      s0 s5 PUSH2
+      DIV
+      s9 s10 XCHG
+      s8 s10 XCHG
+      s7 s10 XCHG
+      4 -ROLL
+      s0 s6 XCHG
+      s0 s5 XCHG
+      s0 s12 XCHG
+      257 PUSHINT
+      s0 s13 XCHG
+      $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_createdAt_active_unlisted INLINECALLDICT
+      NEWC
+      $ChallengeData$_store_cell INLINECALLDICT
+      s5 s3 s0 XCHG3
+      s4 s(-1) PUXC
+      __tact_dict_set_int_cell INLINECALLDICT
+          NEWC
+      s1 s3 XCHG
+      32 STU
+      s0 s3 XCHG2
+          STSLICER
+          ENDC
+          HASHCU
+      257 PUSHINT
+      s8 s(-1) s(-1) PUXCPU
+      s3 s(-1) PUXC
+      __tact_dict_get_int_int INLINECALLDICT
+      0 PUSHINT
+      OVER
+      ISNULL
+      NOT
+      IF:<{
+        DROP
+        __tact_not_null INLINECALLDICT
+      }>ELSE<{
+        NIP
+      }>
+      257 PUSHINT
+      s0 s4 XCHG
+      ADD
+      s3 PUSH
+      s4 s9 XCHG
+      s3 s9 XCHG
+      __tact_dict_set_int_int INLINECALLDICT
+      s3 s5 XCHG
+      s4 s3 s0 XCHG3
+      s1 s2 XCHG
       $ProductivityEscrow$_contract_store INLINECALLDICT
     }>
     OVER
@@ -451,7 +613,7 @@ PROGRAM{
       __tact_context_get INLINECALLDICT
       s2 s3 XCHG
       3 BLKDROP
-      s7 PUSH
+      s4 PUSH
       257 PUSHINT
       s5 PUSH
       __tact_dict_get_int_cell INLINECALLDICT
@@ -463,31 +625,31 @@ PROGRAM{
       THROWANYIFNOT
       $ChallengeData$_not_null INLINECALLDICT
       8433 PUSHINT
-      SWAP
+      ROT
       THROWANYIFNOT
       55597 PUSHINT
-      s9 s7 XCPU
+      s11 s9 XCPU
       SDEQ
-      s1 s9 XCHG
+      s1 s11 XCHG
       THROWANYIFNOT
       61368 PUSHINT
           NOW
-      s9 PUSH
+      s3 PUSH
       LEQ
       THROWANYIFNOT
       43091 PUSHINT
-      s10 s3 PUSH2
+      s12 s5 PUSH2
       LESS
       THROWANYIFNOT
           NEWC
-      s11 s(-1) PUXC
+      s13 s(-1) PUXC
       32 STU
-      s10 s(-1) PUXC
+      s12 s(-1) PUXC
       32 STU
           ENDC
           HASHCU
       57829 PUSHINT
-      17 s() PUSH
+      19 s() PUSH
       257 PUSHINT
       s3 PUSH
       1 PUSHINT
@@ -495,45 +657,44 @@ PROGRAM{
       ISNULL
       THROWANYIFNOT
           NEWC
-      s12 s(-1) PUXC
+      s14 s(-1) PUXC
       32 STU
-      s1 s11 XCHG
+      s1 s13 XCHG
       32 STU
-      s6 PUSH
+      s8 PUSH
           STSLICER
           ENDC
           HASHCU
       48401 PUSHINT
-      s10 s14 XCPU
+      s0 s12 XCHG
+      17 s() PUSH
           CHKSIGNU
-      s1 s9 XCHG
+      s1 s11 XCHG
       THROWANYIFNOT
-      s1 s14 XCHG
+      s1 16 s() XCHG
       257 PUSHINT
-      s0 s9 XCHG2
+      s0 s11 XCHG2
       TRUE
       1 PUSHINT
       __tact_dict_set_int_int INLINECALLDICT
-      s0 s6 XCHG
+      s0 s15 XCHG
       INC
-      s0 s13 PUSH2
+      s0 s2 PUSH2
       LESS
       257 PUSHINT
-      s5 PUSH
-      s3 16 s() XCHG
-      s10 PUSH
-      s0 s3 XCHG
-      s2 17 s() XCHG
-      s1 s9 XCHG
-      $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_active INLINECALLDICT
+      s7 s3 PUSH2
+      s3 s13 XCHG
+      s12 s13 s11 XCHG3
+      $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_createdAt_active_unlisted INLINECALLDICT
       NEWC
       $ChallengeData$_store_cell INLINECALLDICT
-      s3 s8 XCHG
-      s9 s4 s0 XCHG3
+      s3 s5 XCHG
+      s1 s4 XCHG
       __tact_dict_set_int_cell INLINECALLDICT
       1 PUSHINT
           B{b5ee9c7241010101001700002a00000000436865636b706f696e7420726577617264a2e172d4} B>boc PUSHREF
-      s2 s7 XCHG
+      s3 s4 XCHG
+      s2 s4 XCHG
       $SendParameters$_constructor_to_value_mode_body INLINECALLDICT
           NEWC
           b{01} STSLICECONST  // store tag = $0 and ihr_disabled = true
@@ -601,7 +762,8 @@ PROGRAM{
           // Group 5: Sending the message, with `mode` on top
           SWAP
           SENDRAWMSG // https://github.com/tact-lang/tact/issues/1558
-      s0 s3 s4 XCHG3
+      s3 s5 XCHG
+      2 3 BLKSWAP
       $ProductivityEscrow$_contract_store INLINECALLDICT
     }>
     OVER
@@ -614,7 +776,7 @@ PROGRAM{
       __tact_context_get INLINECALLDICT
       s2 s3 XCHG
       3 BLKDROP
-      s5 PUSH
+      s2 PUSH
       257 PUSHINT
       s3 PUSH
       __tact_dict_get_int_cell INLINECALLDICT
@@ -626,40 +788,47 @@ PROGRAM{
       THROWANYIFNOT
       $ChallengeData$_not_null INLINECALLDICT
       17701 PUSHINT
-      s10 s9 XCPU
+      s12 s11 XCPU
       SDEQ
-      s1 s10 XCHG
+      s1 s12 XCHG
       THROWANYIFNOT
       12222 PUSHINT
           NOW
-      s2 PUSH
+      s4 PUSH
       GREATER
       THROWANYIFNOT
       62291 PUSHINT
-      s0 s9 XCHG2
+      SWAP
       THROWANYIFNOT
-      s2 s0 PUSH2
+      s4 s2 PUSH2
       SUB
-      s2 PUSH
+      s4 PUSH
       MUL
-      s7 PUSH
-      6 2 BLKSWAP
       257 PUSHINT
-      s0 s10 XCHG
       FALSE
-      $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_active INLINECALLDICT
+      s11 PUSH
+      s0 s10 XCHG
+      s9 s11 XCHG
+      s0 s8 XCHG
+      s7 s11 XCHG
+      s0 s6 XCHG
+      s5 s11 XCHG
+      s0 s4 XCHG
+      s3 s11 XCHG
+      s0 s1 s13 XCHG3
+      $ChallengeData$_constructor_sponsor_beneficiary_challengeId_totalDeposit_totalCheckpoints_amountPerCheckpoint_claimedCount_endDate_createdAt_active_unlisted INLINECALLDICT
       NEWC
       $ChallengeData$_store_cell INLINECALLDICT
-      s3 s8 XCHG
-      s8 s4 s0 XCHG3
+      s3 s5 XCHG
+      s5 s4 s0 XCHG3
       __tact_dict_set_int_cell INLINECALLDICT
       OVER
       0 GTINT
       IF:<{
         1 PUSHINT
             B{b5ee9c7241010101001600002800000000556e636c61696d656420726566756e64611f35e5} B>boc PUSHREF
-        s3 s7 XCHG
-        s2 s7 XCHG
+        s3 s4 XCHG
+        s2 s4 XCHG
         $SendParameters$_constructor_to_value_mode_body INLINECALLDICT
             NEWC
             b{01} STSLICECONST  // store tag = $0 and ihr_disabled = true
@@ -728,10 +897,10 @@ PROGRAM{
             SWAP
             SENDRAWMSG // https://github.com/tact-lang/tact/issues/1558
       }>ELSE<{
-        s5 POP
-        DROP
+        2 1 BLKDROP2
       }>
-      s0 s3 s4 XCHG3
+      s3 s5 XCHG
+      2 3 BLKSWAP
       $ProductivityEscrow$_contract_store INLINECALLDICT
     }>
     SWAP
@@ -743,12 +912,14 @@ PROGRAM{
       $DeployOk$_constructor_queryId INLINECALLDICT
       NEWC
       $DeployOk$_store_cell INLINECALLDICT
+      s4 s6 XCHG
       s3 s5 XCHG
       s4 s3 s0 XCHG3
+      s1 s2 XCHG
       $ProductivityEscrow$_fun_notify INLINECALLDICT
       $ProductivityEscrow$_contract_store INLINECALLDICT
     }>
-    6 BLKDROP
+    7 BLKDROP
     130 THROW
   }>
   __tact_selector_hack PROC:<{

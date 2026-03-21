@@ -3,10 +3,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useTonConnectUI, useTonAddress } from "@tonconnect/ui-react";
 import {
   getChallenge,
+  getSponsorContribution,
   isCheckpointClaimed,
+  buildAddFundsBody,
   buildClaimCheckpointBody,
   buildRefundUnclaimedBody,
   CONTRACT_ADDRESS,
+  normalizeAddress,
   toNano,
   type OnChainChallenge,
 } from "../contract";
@@ -27,13 +30,17 @@ export function ChallengeDetail() {
   const [verifying, setVerifying] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [refunding, setRefunding] = useState(false);
+  const [fundAmount, setFundAmount] = useState("");
+  const [funding, setFunding] = useState(false);
+  const [userContribution, setUserContribution] = useState<bigint | null>(null);
+  const [creatorContribution, setCreatorContribution] = useState<bigint | null>(null);
   const [duolingoInput, setDuolingoInput] = useState("");
 
   const idx = parseInt(id || "0", 10);
 
   useEffect(() => {
     loadChallenge();
-  }, [idx]);
+  }, [idx, userAddress]);
 
   async function loadChallenge() {
     setLoading(true);
@@ -41,13 +48,32 @@ export function ChallengeDetail() {
     try {
       const c = await getChallenge(idx);
       setChallenge(c);
-      if (c) {
-        const claimed: boolean[] = [];
-        for (let i = 0; i < c.totalCheckpoints; i++) {
-          claimed.push(await isCheckpointClaimed(idx, i));
-        }
-        setClaimedMap(claimed);
+      if (!c) {
+        setClaimedMap([]);
+        setUserContribution(null);
+        setCreatorContribution(null);
+        return;
       }
+
+      const claimedPromise = Promise.all(
+        Array.from({ length: c.totalCheckpoints }, (_, i) => isCheckpointClaimed(idx, i)),
+      );
+      const creatorContributionPromise = getSponsorContribution(idx, c.sponsor);
+      const userContributionPromise = userAddress
+        ? userAddress === c.sponsor
+          ? creatorContributionPromise
+          : getSponsorContribution(idx, userAddress)
+        : Promise.resolve(0n);
+
+      const [claimed, creatorStake, currentUserStake] = await Promise.all([
+        claimedPromise,
+        creatorContributionPromise,
+        userContributionPromise,
+      ]);
+
+      setClaimedMap(claimed);
+      setCreatorContribution(creatorStake);
+      setUserContribution(userAddress ? currentUserStake : null);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -57,10 +83,7 @@ export function ChallengeDetail() {
 
   async function handleVerify() {
     if (!challenge) return;
-    const parts = challenge.challengeId.split(":");
-    const app = parts[0];
-    const action = parts[1];
-    const count = parseInt(parts[2] || "0", 10);
+    const { app, action, count } = parseChallengeId(challenge.challengeId);
 
     setVerifying(true);
     try {
@@ -147,6 +170,44 @@ export function ChallengeDetail() {
     }
   }
 
+  async function handleAddFunds() {
+    if (!challenge) return;
+    if (!userAddress) {
+      await tonConnectUI.openModal();
+      return;
+    }
+
+    const parsedAmount = Number.parseFloat(fundAmount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0.01) {
+      alert("Enter an amount above 0.01 TON so the pool actually increases after gas reserve.");
+      return;
+    }
+
+    setFunding(true);
+    try {
+      const body = buildAddFundsBody(idx);
+      await tonConnectUI.sendTransaction({
+        validUntil: Math.floor(Date.now() / 1000) + 600,
+        messages: [
+          {
+            address: CONTRACT_ADDRESS,
+            amount: toNano(fundAmount).toString(),
+            payload: body.toBoc().toString("base64"),
+          },
+        ],
+      });
+
+      setFundAmount("");
+      await loadChallenge();
+    } catch (e: any) {
+      if (!e.message?.includes("Cancelled") && !e.message?.includes("canceled")) {
+        alert(e.message || "Funding failed.");
+      }
+    } finally {
+      setFunding(false);
+    }
+  }
+
   function renderFallbackState(kind: "loading" | "error" | "empty", title: string, message: string) {
     const boxClassName =
       kind === "loading" ? "loading-card" : kind === "error" ? "error-banner" : "empty-state";
@@ -183,8 +244,6 @@ export function ChallengeDetail() {
   const appLabel = APP_LABELS[appKey as keyof typeof APP_LABELS] ?? appKey;
   const actionLabel = formatActionLabel(action);
   const expired = Date.now() / 1000 > challenge.endDate;
-  const isBeneficiary = userAddress === challenge.beneficiary;
-  const isSponsor = userAddress === challenge.sponsor;
   const progressPct = Math.min(100, Math.round((challenge.claimedCount / challenge.totalCheckpoints) * 100));
   const status = !challenge.active
     ? challenge.claimedCount >= challenge.totalCheckpoints
@@ -194,6 +253,11 @@ export function ChallengeDetail() {
       ? "expired"
       : "active";
   const nextCheckpoint = claimedMap.findIndex((claimed) => !claimed);
+  const hasAdditionalBackers = creatorContribution !== null && creatorContribution < challenge.totalDeposit;
+  const showUserContribution = userContribution !== null && userContribution > 0n;
+  const normalizedUserAddress = userAddress ? normalizeAddress(userAddress) : "";
+  const isBeneficiary = normalizedUserAddress !== "" && normalizeAddress(challenge.beneficiary) === normalizedUserAddress;
+  const isSponsor = normalizedUserAddress !== "" && normalizeAddress(challenge.sponsor) === normalizedUserAddress;
 
   return (
     <div className="page">
@@ -210,10 +274,12 @@ export function ChallengeDetail() {
               Escrow #{idx} releases funds one checkpoint at a time. Claims require backend verification and a contract-valid proof.
             </p>
           </div>
-          <span className={`status-pill status-${status}`}>{status}</span>
+          <div className="pill-cluster">
+            <span className={`status-pill status-${status}`}>{status}</span>
+            {challenge.unlisted && <span className="status-pill status-unlisted">Unlisted</span>}
+          </div>
         </div>
         <div className="info-chip-row">
-          <span className="inline-note">{challenge.challengeId}</span>
           <span className="inline-note">{new Date(challenge.endDate * 1000).toLocaleDateString()}</span>
         </div>
       </header>
@@ -241,7 +307,42 @@ export function ChallengeDetail() {
           <div className="stat-value">{new Date(challenge.endDate * 1000).toLocaleDateString()}</div>
           <p className="section-note">{expired ? "Past deadline. Refund path may be available." : "Claims remain open until the deadline."}</p>
         </div>
+        {showUserContribution && (
+          <div className="stat-tile surface">
+            <span className="stat-label">Your stake</span>
+            <div className="stat-value">{(Number(userContribution) / 1e9).toFixed(2)} TON</div>
+            <p className="section-note">Your total contribution to this escrow.</p>
+          </div>
+        )}
       </section>
+
+      {challenge.active && !expired && (
+        <section className="surface section-panel action-panel">
+          <div className="section-header">
+            <div>
+              <h2 className="section-title">Back this challenge</h2>
+              <p className="section-note">Anyone can add TON to increase the reward pool. 0.01 TON stays reserved for gas.</p>
+            </div>
+          </div>
+          <div className="split-grid">
+            <div className="form-group">
+              <label className="form-label">Amount (TON)</label>
+              <input
+                className="form-input"
+                type="number"
+                step="0.01"
+                min="0.02"
+                placeholder="0.50"
+                value={fundAmount}
+                onChange={(e) => setFundAmount(e.target.value)}
+              />
+            </div>
+            <button className="button-primary button-full" onClick={handleAddFunds} disabled={funding}>
+              {!userAddress ? "Connect wallet to add funds" : funding ? "Adding funds..." : "Add funds"}
+            </button>
+          </div>
+        </section>
+      )}
 
       <section className="surface section-panel">
         <div className="section-header">
@@ -265,12 +366,22 @@ export function ChallengeDetail() {
 
       <section className="identity-grid">
         <div className="surface section-panel">
-          <h2 className="section-title" style={{ marginBottom: "0.9rem" }}>Participants</h2>
+          <h2 className="section-title" style={{ marginBottom: "0.35rem" }}>Participants</h2>
+          {hasAdditionalBackers && (
+            <p className="section-note" style={{ marginBottom: "0.9rem" }}>
+              This challenge has additional backers beyond the original creator.
+            </p>
+          )}
           <div className="detail-stack">
             <div className="identity-row">
               <div>
-                <div className="identity-role">Sponsor</div>
+                <div className="identity-role">Creator</div>
                 <div className="identity-address">{challenge.sponsor.slice(0, 6)}...{challenge.sponsor.slice(-4)}</div>
+                {creatorContribution !== null && (
+                  <div className="identity-note">
+                    Contributed {(Number(creatorContribution) / 1e9).toFixed(2)} TON
+                  </div>
+                )}
               </div>
               {isSponsor && <span className="inline-note">You</span>}
             </div>

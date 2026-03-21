@@ -9,7 +9,13 @@ import {
   buildChallengeId,
   formatActionLabel,
 } from "../types/challenge";
-import { buildCreateChallengeBody, CONTRACT_ADDRESS, toNano } from "../contract";
+import {
+  buildCreateChallengeBody,
+  CONTRACT_ADDRESS,
+  getAllChallenges,
+  normalizeAddress,
+  toNano,
+} from "../contract";
 
 export function CreateChallenge() {
   const navigate = useNavigate();
@@ -23,9 +29,42 @@ export function CreateChallenge() {
   const [whoIsPaid, setWhoIsPaid] = useState("");
   const [endDate, setEndDate] = useState("");
   const [duolingoUsername, setDuolingoUsername] = useState("");
+  const [unlisted, setUnlisted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [submissionStatus, setSubmissionStatus] = useState("");
 
   const actions = useMemo(() => APP_ACTIONS[app], [app]);
+
+  async function waitForChallengeIndexing(params: {
+    sponsor: string;
+    beneficiary: string;
+    challengeId: string;
+    totalCheckpoints: number;
+    endDate: number;
+    unlisted: boolean;
+  }) {
+    const sponsor = normalizeAddress(params.sponsor);
+    const beneficiary = normalizeAddress(params.beneficiary);
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < 45000) {
+      const challenges = await getAllChallenges();
+      const challenge = challenges.find((candidate) =>
+        normalizeAddress(candidate.sponsor) === sponsor &&
+        normalizeAddress(candidate.beneficiary) === beneficiary &&
+        candidate.challengeId === params.challengeId &&
+        candidate.totalCheckpoints === params.totalCheckpoints &&
+        candidate.endDate === params.endDate &&
+        candidate.unlisted === params.unlisted,
+      );
+
+      if (challenge) return challenge;
+
+      await new Promise((resolve) => window.setTimeout(resolve, 2000));
+    }
+
+    throw new Error("The transaction was submitted, but the challenge is not visible yet. Wait a few seconds and try again.");
+  }
 
   function handleAppChange(newApp: App) {
     setApp(newApp);
@@ -52,6 +91,7 @@ export function CreateChallenge() {
     }
 
     setSubmitting(true);
+    setSubmissionStatus("");
     try {
       const beneficiary = whoIsPaid || userAddress;
       const endTimestamp = Math.floor(
@@ -59,9 +99,11 @@ export function CreateChallenge() {
       );
       const totalCheckpoints = count;
 
-      const body = buildCreateChallengeBody(beneficiary, challengeId, totalCheckpoints, endTimestamp);
+      const body = buildCreateChallengeBody(beneficiary, challengeId, totalCheckpoints, endTimestamp, unlisted);
 
       // Send transaction via TON Connect
+      console.log("[CreateChallenge] sending to:", CONTRACT_ADDRESS, "amount:", toNano(amount).toString(), "payload:", body.toBoc().toString("base64"));
+      setSubmissionStatus("Waiting for wallet confirmation...");
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
         messages: [
@@ -73,8 +115,17 @@ export function CreateChallenge() {
         ],
       });
 
-      // After successful transaction, navigate to home to see the new challenge
-      navigate("/");
+      setSubmissionStatus("Waiting for the challenge to be indexed...");
+      const indexedChallenge = await waitForChallengeIndexing({
+        sponsor: userAddress,
+        beneficiary,
+        challengeId,
+        totalCheckpoints,
+        endDate: endTimestamp,
+        unlisted,
+      });
+
+      navigate(`/challenge/${indexedChallenge.index}`);
     } catch (err: any) {
       if (err.message?.includes("Cancelled") || err.message?.includes("canceled")) {
         // User cancelled — do nothing
@@ -83,6 +134,7 @@ export function CreateChallenge() {
       }
     } finally {
       setSubmitting(false);
+      setSubmissionStatus("");
     }
   }
 
@@ -109,7 +161,6 @@ export function CreateChallenge() {
               <h2 className="section-title">Challenge rule</h2>
               <p className="section-note">Choose the app, the tracked action, and how many checkpoints must be unlocked.</p>
             </div>
-            <span className="inline-note">{challengeId}</span>
           </div>
           <div className="section-divider" />
           <div className="split-grid">
@@ -206,6 +257,21 @@ export function CreateChallenge() {
             <p className="field-hint">Leave empty to pay yourself. Otherwise enter the beneficiary TON address.</p>
           </div>
 
+          <label className="toggle-row" style={{ marginTop: "0.9rem" }}>
+            <span className="toggle-copy">
+              <span className="toggle-title">Unlisted</span>
+              <span className="toggle-note">Hide this challenge from public browse lists. It will still be accessible via direct link.</span>
+            </span>
+            <span className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={unlisted}
+                onChange={(e) => setUnlisted(e.target.checked)}
+              />
+              <span className="toggle-slider" aria-hidden="true" />
+            </span>
+          </label>
+
           {app === App.Duolingo && (
             <div className="form-group" style={{ marginTop: "0.9rem" }}>
               <label className="form-label">Duolingo username</label>
@@ -227,7 +293,6 @@ export function CreateChallenge() {
               <h2 className="section-title">Challenge summary</h2>
               <p className="section-note">A quick read before you ask the wallet to sign.</p>
             </div>
-            <span className="inline-note">{APP_LABELS[app]}</span>
           </div>
           <div className="summary-list">
             <div className="summary-row">
@@ -235,10 +300,6 @@ export function CreateChallenge() {
               <span className="summary-value">
                 {count} x {actionLabel} on {APP_LABELS[app]}
               </span>
-            </div>
-            <div className="summary-row">
-              <span className="summary-label">Challenge ID</span>
-              <span className="summary-value">{challengeId}</span>
             </div>
             <div className="summary-row">
               <span className="summary-label">Total stake</span>
@@ -255,6 +316,10 @@ export function CreateChallenge() {
               <span className="summary-value">
                 {endDate ? new Date(endDate).toLocaleDateString() : "--"}
               </span>
+            </div>
+            <div className="summary-row">
+              <span className="summary-label">Visibility</span>
+              <span className="summary-value">{unlisted ? "Unlisted" : "Public"}</span>
             </div>
             <div className="summary-row">
               <span className="summary-label">Sponsor</span>
@@ -283,6 +348,7 @@ export function CreateChallenge() {
             {!userAddress ? "Connect wallet" : submitting ? "Creating..." : "Create challenge"}
           </button>
         </div>
+        {submissionStatus && <p className="field-hint">{submissionStatus}</p>}
       </form>
     </div>
   );

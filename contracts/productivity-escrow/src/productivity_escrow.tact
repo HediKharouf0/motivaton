@@ -8,6 +8,11 @@ message CreateChallenge {
     challengeId: String;
     totalCheckpoints: Int as uint32;
     endDate: Int as uint64;
+    unlisted: Bool;
+}
+
+message AddFunds {
+    challengeIdx: Int as uint32;
 }
 
 message ClaimCheckpoint {
@@ -30,7 +35,9 @@ struct ChallengeData {
     amountPerCheckpoint: Int as coins;
     claimedCount: Int as uint32;
     endDate: Int as uint64;
+    createdAt: Int as uint64;
     active: Bool;
+    unlisted: Bool;
 }
 
 contract ProductivityEscrow with Deployable, Ownable {
@@ -41,6 +48,8 @@ contract ProductivityEscrow with Deployable, Ownable {
     challenges: map<Int, ChallengeData>;
     // Claimed checkpoints keyed by: hash(challengeIdx ++ checkpointIdx)
     claimedCheckpoints: map<Int, Bool>;
+    // Sponsor contributions keyed by: hash(challengeIdx ++ sponsorAddress)
+    sponsorContributions: map<Int, Int>;
 
     init(owner: Address, verifierPublicKey: Int) {
         self.owner = owner;
@@ -71,10 +80,64 @@ contract ProductivityEscrow with Deployable, Ownable {
             amountPerCheckpoint: amountPerCheckpoint,
             claimedCount: 0,
             endDate: msg.endDate,
-            active: true
+            createdAt: now(),
+            active: true,
+            unlisted: msg.unlisted
         });
 
+        // Track initial sponsor contribution
+        let contribKey: Int = beginCell()
+            .storeUint(idx, 32)
+            .storeAddress(ctx.sender)
+            .endCell()
+            .hash();
+        self.sponsorContributions.set(contribKey, deposit);
+
         self.challengeCount = idx + 1;
+    }
+
+    // Anyone can add funds to an active challenge.
+    receive(msg: AddFunds) {
+        let ctx: Context = context();
+
+        let challenge: ChallengeData? = self.challenges.get(msg.challengeIdx);
+        require(challenge != null, "Challenge not found");
+        let cd: ChallengeData = challenge!!;
+
+        require(cd.active, "Challenge is not active");
+        require(now() <= cd.endDate, "Challenge has expired");
+        require(ctx.value > ton("0.01"), "Must send more than 0.01 TON");
+
+        let addedDeposit: Int = ctx.value - ton("0.01");
+        let newTotalDeposit: Int = cd.totalDeposit + addedDeposit;
+        let newAmountPerCheckpoint: Int = newTotalDeposit / cd.totalCheckpoints;
+
+        self.challenges.set(msg.challengeIdx, ChallengeData{
+            sponsor: cd.sponsor,
+            beneficiary: cd.beneficiary,
+            challengeId: cd.challengeId,
+            totalDeposit: newTotalDeposit,
+            totalCheckpoints: cd.totalCheckpoints,
+            amountPerCheckpoint: newAmountPerCheckpoint,
+            claimedCount: cd.claimedCount,
+            endDate: cd.endDate,
+            createdAt: cd.createdAt,
+            active: cd.active,
+            unlisted: cd.unlisted
+        });
+
+        // Track this sponsor's contribution (accumulate)
+        let contribKey: Int = beginCell()
+            .storeUint(msg.challengeIdx, 32)
+            .storeAddress(ctx.sender)
+            .endCell()
+            .hash();
+        let existing: Int? = self.sponsorContributions.get(contribKey);
+        let prev: Int = 0;
+        if (existing != null) {
+            prev = existing!!;
+        }
+        self.sponsorContributions.set(contribKey, prev + addedDeposit);
     }
 
     // Beneficiary claims a checkpoint with a backend-signed proof.
@@ -123,7 +186,9 @@ contract ProductivityEscrow with Deployable, Ownable {
             amountPerCheckpoint: cd.amountPerCheckpoint,
             claimedCount: newClaimedCount,
             endDate: cd.endDate,
-            active: updatedActive
+            createdAt: cd.createdAt,
+            active: updatedActive,
+            unlisted: cd.unlisted
         });
 
         send(SendParameters{
@@ -159,7 +224,9 @@ contract ProductivityEscrow with Deployable, Ownable {
             amountPerCheckpoint: cd.amountPerCheckpoint,
             claimedCount: cd.claimedCount,
             endDate: cd.endDate,
-            active: false
+            createdAt: cd.createdAt,
+            active: false,
+            unlisted: cd.unlisted
         });
 
         if (refundAmount > 0) {
@@ -189,6 +256,19 @@ contract ProductivityEscrow with Deployable, Ownable {
             .endCell()
             .hash();
         return self.claimedCheckpoints.get(claimKey) != null;
+    }
+
+    get fun sponsorContribution(challengeIdx: Int, sponsor: Address): Int {
+        let contribKey: Int = beginCell()
+            .storeUint(challengeIdx, 32)
+            .storeAddress(sponsor)
+            .endCell()
+            .hash();
+        let val: Int? = self.sponsorContributions.get(contribKey);
+        if (val != null) {
+            return val!!;
+        }
+        return 0;
     }
 
     get fun verifierPublicKey(): Int {

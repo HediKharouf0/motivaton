@@ -868,27 +868,30 @@ export type CreateChallenge = {
     challengeId: string;
     totalCheckpoints: bigint;
     endDate: bigint;
+    unlisted: boolean;
 }
 
 export function storeCreateChallenge(src: CreateChallenge) {
     return (builder: Builder) => {
         const b_0 = builder;
-        b_0.storeUint(4032046032, 32);
+        b_0.storeUint(3263563012, 32);
         b_0.storeAddress(src.beneficiary);
         b_0.storeStringRefTail(src.challengeId);
         b_0.storeUint(src.totalCheckpoints, 32);
         b_0.storeUint(src.endDate, 64);
+        b_0.storeBit(src.unlisted);
     };
 }
 
 export function loadCreateChallenge(slice: Slice) {
     const sc_0 = slice;
-    if (sc_0.loadUint(32) !== 4032046032) { throw Error('Invalid prefix'); }
+    if (sc_0.loadUint(32) !== 3263563012) { throw Error('Invalid prefix'); }
     const _beneficiary = sc_0.loadAddress();
     const _challengeId = sc_0.loadStringRefTail();
     const _totalCheckpoints = sc_0.loadUintBig(32);
     const _endDate = sc_0.loadUintBig(64);
-    return { $$type: 'CreateChallenge' as const, beneficiary: _beneficiary, challengeId: _challengeId, totalCheckpoints: _totalCheckpoints, endDate: _endDate };
+    const _unlisted = sc_0.loadBit();
+    return { $$type: 'CreateChallenge' as const, beneficiary: _beneficiary, challengeId: _challengeId, totalCheckpoints: _totalCheckpoints, endDate: _endDate, unlisted: _unlisted };
 }
 
 export function loadTupleCreateChallenge(source: TupleReader) {
@@ -896,7 +899,8 @@ export function loadTupleCreateChallenge(source: TupleReader) {
     const _challengeId = source.readString();
     const _totalCheckpoints = source.readBigNumber();
     const _endDate = source.readBigNumber();
-    return { $$type: 'CreateChallenge' as const, beneficiary: _beneficiary, challengeId: _challengeId, totalCheckpoints: _totalCheckpoints, endDate: _endDate };
+    const _unlisted = source.readBoolean();
+    return { $$type: 'CreateChallenge' as const, beneficiary: _beneficiary, challengeId: _challengeId, totalCheckpoints: _totalCheckpoints, endDate: _endDate, unlisted: _unlisted };
 }
 
 export function loadGetterTupleCreateChallenge(source: TupleReader) {
@@ -904,7 +908,8 @@ export function loadGetterTupleCreateChallenge(source: TupleReader) {
     const _challengeId = source.readString();
     const _totalCheckpoints = source.readBigNumber();
     const _endDate = source.readBigNumber();
-    return { $$type: 'CreateChallenge' as const, beneficiary: _beneficiary, challengeId: _challengeId, totalCheckpoints: _totalCheckpoints, endDate: _endDate };
+    const _unlisted = source.readBoolean();
+    return { $$type: 'CreateChallenge' as const, beneficiary: _beneficiary, challengeId: _challengeId, totalCheckpoints: _totalCheckpoints, endDate: _endDate, unlisted: _unlisted };
 }
 
 export function storeTupleCreateChallenge(source: CreateChallenge) {
@@ -913,6 +918,7 @@ export function storeTupleCreateChallenge(source: CreateChallenge) {
     builder.writeString(source.challengeId);
     builder.writeNumber(source.totalCheckpoints);
     builder.writeNumber(source.endDate);
+    builder.writeBoolean(source.unlisted);
     return builder.build();
 }
 
@@ -923,6 +929,53 @@ export function dictValueParserCreateChallenge(): DictionaryValue<CreateChalleng
         },
         parse: (src) => {
             return loadCreateChallenge(src.loadRef().beginParse());
+        }
+    }
+}
+
+export type AddFunds = {
+    $$type: 'AddFunds';
+    challengeIdx: bigint;
+}
+
+export function storeAddFunds(src: AddFunds) {
+    return (builder: Builder) => {
+        const b_0 = builder;
+        b_0.storeUint(1212164813, 32);
+        b_0.storeUint(src.challengeIdx, 32);
+    };
+}
+
+export function loadAddFunds(slice: Slice) {
+    const sc_0 = slice;
+    if (sc_0.loadUint(32) !== 1212164813) { throw Error('Invalid prefix'); }
+    const _challengeIdx = sc_0.loadUintBig(32);
+    return { $$type: 'AddFunds' as const, challengeIdx: _challengeIdx };
+}
+
+export function loadTupleAddFunds(source: TupleReader) {
+    const _challengeIdx = source.readBigNumber();
+    return { $$type: 'AddFunds' as const, challengeIdx: _challengeIdx };
+}
+
+export function loadGetterTupleAddFunds(source: TupleReader) {
+    const _challengeIdx = source.readBigNumber();
+    return { $$type: 'AddFunds' as const, challengeIdx: _challengeIdx };
+}
+
+export function storeTupleAddFunds(source: AddFunds) {
+    const builder = new TupleBuilder();
+    builder.writeNumber(source.challengeIdx);
+    return builder.build();
+}
+
+export function dictValueParserAddFunds(): DictionaryValue<AddFunds> {
+    return {
+        serialize: (src, builder) => {
+            builder.storeRef(beginCell().store(storeAddFunds(src)).endCell());
+        },
+        parse: (src) => {
+            return loadAddFunds(src.loadRef().beginParse());
         }
     }
 }
@@ -1043,7 +1096,9 @@ export type ChallengeData = {
     amountPerCheckpoint: bigint;
     claimedCount: bigint;
     endDate: bigint;
+    createdAt: bigint;
     active: boolean;
+    unlisted: boolean;
 }
 
 export function storeChallengeData(src: ChallengeData) {
@@ -1057,7 +1112,9 @@ export function storeChallengeData(src: ChallengeData) {
         b_0.storeCoins(src.amountPerCheckpoint);
         b_0.storeUint(src.claimedCount, 32);
         b_0.storeUint(src.endDate, 64);
+        b_0.storeUint(src.createdAt, 64);
         b_0.storeBit(src.active);
+        b_0.storeBit(src.unlisted);
     };
 }
 
@@ -1071,8 +1128,10 @@ export function loadChallengeData(slice: Slice) {
     const _amountPerCheckpoint = sc_0.loadCoins();
     const _claimedCount = sc_0.loadUintBig(32);
     const _endDate = sc_0.loadUintBig(64);
+    const _createdAt = sc_0.loadUintBig(64);
     const _active = sc_0.loadBit();
-    return { $$type: 'ChallengeData' as const, sponsor: _sponsor, beneficiary: _beneficiary, challengeId: _challengeId, totalDeposit: _totalDeposit, totalCheckpoints: _totalCheckpoints, amountPerCheckpoint: _amountPerCheckpoint, claimedCount: _claimedCount, endDate: _endDate, active: _active };
+    const _unlisted = sc_0.loadBit();
+    return { $$type: 'ChallengeData' as const, sponsor: _sponsor, beneficiary: _beneficiary, challengeId: _challengeId, totalDeposit: _totalDeposit, totalCheckpoints: _totalCheckpoints, amountPerCheckpoint: _amountPerCheckpoint, claimedCount: _claimedCount, endDate: _endDate, createdAt: _createdAt, active: _active, unlisted: _unlisted };
 }
 
 export function loadTupleChallengeData(source: TupleReader) {
@@ -1084,8 +1143,10 @@ export function loadTupleChallengeData(source: TupleReader) {
     const _amountPerCheckpoint = source.readBigNumber();
     const _claimedCount = source.readBigNumber();
     const _endDate = source.readBigNumber();
+    const _createdAt = source.readBigNumber();
     const _active = source.readBoolean();
-    return { $$type: 'ChallengeData' as const, sponsor: _sponsor, beneficiary: _beneficiary, challengeId: _challengeId, totalDeposit: _totalDeposit, totalCheckpoints: _totalCheckpoints, amountPerCheckpoint: _amountPerCheckpoint, claimedCount: _claimedCount, endDate: _endDate, active: _active };
+    const _unlisted = source.readBoolean();
+    return { $$type: 'ChallengeData' as const, sponsor: _sponsor, beneficiary: _beneficiary, challengeId: _challengeId, totalDeposit: _totalDeposit, totalCheckpoints: _totalCheckpoints, amountPerCheckpoint: _amountPerCheckpoint, claimedCount: _claimedCount, endDate: _endDate, createdAt: _createdAt, active: _active, unlisted: _unlisted };
 }
 
 export function loadGetterTupleChallengeData(source: TupleReader) {
@@ -1097,8 +1158,10 @@ export function loadGetterTupleChallengeData(source: TupleReader) {
     const _amountPerCheckpoint = source.readBigNumber();
     const _claimedCount = source.readBigNumber();
     const _endDate = source.readBigNumber();
+    const _createdAt = source.readBigNumber();
     const _active = source.readBoolean();
-    return { $$type: 'ChallengeData' as const, sponsor: _sponsor, beneficiary: _beneficiary, challengeId: _challengeId, totalDeposit: _totalDeposit, totalCheckpoints: _totalCheckpoints, amountPerCheckpoint: _amountPerCheckpoint, claimedCount: _claimedCount, endDate: _endDate, active: _active };
+    const _unlisted = source.readBoolean();
+    return { $$type: 'ChallengeData' as const, sponsor: _sponsor, beneficiary: _beneficiary, challengeId: _challengeId, totalDeposit: _totalDeposit, totalCheckpoints: _totalCheckpoints, amountPerCheckpoint: _amountPerCheckpoint, claimedCount: _claimedCount, endDate: _endDate, createdAt: _createdAt, active: _active, unlisted: _unlisted };
 }
 
 export function storeTupleChallengeData(source: ChallengeData) {
@@ -1111,7 +1174,9 @@ export function storeTupleChallengeData(source: ChallengeData) {
     builder.writeNumber(source.amountPerCheckpoint);
     builder.writeNumber(source.claimedCount);
     builder.writeNumber(source.endDate);
+    builder.writeNumber(source.createdAt);
     builder.writeBoolean(source.active);
+    builder.writeBoolean(source.unlisted);
     return builder.build();
 }
 
@@ -1133,6 +1198,7 @@ export type ProductivityEscrow$Data = {
     challengeCount: bigint;
     challenges: Dictionary<bigint, ChallengeData>;
     claimedCheckpoints: Dictionary<bigint, boolean>;
+    sponsorContributions: Dictionary<bigint, bigint>;
 }
 
 export function storeProductivityEscrow$Data(src: ProductivityEscrow$Data) {
@@ -1143,6 +1209,7 @@ export function storeProductivityEscrow$Data(src: ProductivityEscrow$Data) {
         b_0.storeUint(src.challengeCount, 32);
         b_0.storeDict(src.challenges, Dictionary.Keys.BigInt(257), dictValueParserChallengeData());
         b_0.storeDict(src.claimedCheckpoints, Dictionary.Keys.BigInt(257), Dictionary.Values.Bool());
+        b_0.storeDict(src.sponsorContributions, Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257));
     };
 }
 
@@ -1153,7 +1220,8 @@ export function loadProductivityEscrow$Data(slice: Slice) {
     const _challengeCount = sc_0.loadUintBig(32);
     const _challenges = Dictionary.load(Dictionary.Keys.BigInt(257), dictValueParserChallengeData(), sc_0);
     const _claimedCheckpoints = Dictionary.load(Dictionary.Keys.BigInt(257), Dictionary.Values.Bool(), sc_0);
-    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints };
+    const _sponsorContributions = Dictionary.load(Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257), sc_0);
+    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions };
 }
 
 export function loadTupleProductivityEscrow$Data(source: TupleReader) {
@@ -1162,7 +1230,8 @@ export function loadTupleProductivityEscrow$Data(source: TupleReader) {
     const _challengeCount = source.readBigNumber();
     const _challenges = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), dictValueParserChallengeData(), source.readCellOpt());
     const _claimedCheckpoints = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.Bool(), source.readCellOpt());
-    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints };
+    const _sponsorContributions = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257), source.readCellOpt());
+    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions };
 }
 
 export function loadGetterTupleProductivityEscrow$Data(source: TupleReader) {
@@ -1171,7 +1240,8 @@ export function loadGetterTupleProductivityEscrow$Data(source: TupleReader) {
     const _challengeCount = source.readBigNumber();
     const _challenges = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), dictValueParserChallengeData(), source.readCellOpt());
     const _claimedCheckpoints = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.Bool(), source.readCellOpt());
-    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints };
+    const _sponsorContributions = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257), source.readCellOpt());
+    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions };
 }
 
 export function storeTupleProductivityEscrow$Data(source: ProductivityEscrow$Data) {
@@ -1181,6 +1251,7 @@ export function storeTupleProductivityEscrow$Data(source: ProductivityEscrow$Dat
     builder.writeNumber(source.challengeCount);
     builder.writeCell(source.challenges.size > 0 ? beginCell().storeDictDirect(source.challenges, Dictionary.Keys.BigInt(257), dictValueParserChallengeData()).endCell() : null);
     builder.writeCell(source.claimedCheckpoints.size > 0 ? beginCell().storeDictDirect(source.claimedCheckpoints, Dictionary.Keys.BigInt(257), Dictionary.Values.Bool()).endCell() : null);
+    builder.writeCell(source.sponsorContributions.size > 0 ? beginCell().storeDictDirect(source.sponsorContributions, Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257)).endCell() : null);
     return builder.build();
 }
 
@@ -1210,7 +1281,7 @@ function initProductivityEscrow_init_args(src: ProductivityEscrow_init_args) {
 }
 
 async function ProductivityEscrow_init(owner: Address, verifierPublicKey: bigint) {
-    const __code = Cell.fromHex('b5ee9c7241021b0100059900022cff008e88f4a413f4bcf2c80bed53208e8130e1ed43d9010f020271020d02012003050157bbbe4ed44d0d200019efa40d3ffd31ff404f40455406c159efa40810101d7005902d101706d6de2db3c6c51804000222020120060b02016207090186a837ed44d0d200019efa40d3ffd31ff404f40455406c159efa40810101d7005902d101706d6de25504db3c6c51206e92306d99206ef2d0806f296f09e2206e92306dde080062810101230259f40d6fa192306ddf206e92306d8e1bd0fa40fa40d401d001fa00d31ffa00d31fd33fd20055806c196f09e20156a91ded44d0d200019efa40d3ffd31ff404f40455406c159efa40810101d7005902d101706d6de2db3c6c510a000224015bb7205da89a1a400033df481a7ffa63fe809e808aa80d82b3df481020203ae00b205a202e0dadbc4aa29b678d8a300c0040c812cb1fcb1fc9f9008101012202714133f40c6fa19401d70030925b6de26eb30157bc5faf6a268690000cf7d2069ffe98ffa027a022aa0360acf7d20408080eb802c816880b836b6f16d9e3628c0e00022304dc01d072d721d200d200fa4021103450666f04f86102f862ed44d0d200019efa40d3ffd31ff404f40455406c159efa40810101d7005902d101706d6de206925f06e004d70d1ff2e082218210f05423d0bae3022182107b562c3fbae30221821070ccaed4bae302018210946a98b6ba1012161a01fe31fa40d401d001d31fd33f30f8416f243032816cf022820afaf080bcf2f4816f8224c200f2f4f8235230bcf2e65301820afaf080a15303a9048108cd21c200f2f4102510464130168101017050087fc855805089ce16ce04c8ce14cd58fa02cb1f01fa02cb1fcb3fca00c922103601206e953059f45a30944133f415e203a41100304034c87f01ca0055405045ce12cbffcb1ff400f400c9ed5401fc31d31fd31fd430d0f8416f2410235f03278101012559f40d6fa192306ddf206e92306d8e1bd0fa40fa40d401d001fa00d31ffa00d31fd33fd20055806c196f09e281209a216eb3f2f4206ef2d0806f298120f101f2f48200d92d5197c70519f2f48200efb8f82329bbf2f48200a85353a3b9f2f4c852b0cb1f52a0cb1fc91301cef9008200e1e5561181010123714133f40c6fa19401d70030925b6de26ef2f4c852c0cb1f1bcb1f26cf16c9f9008200bd1151aef91019f2f41e81010150097f71216e955b59f45a3098c801cf004133f442e206a4530db981010125031110032a030211110219c81401fe55805089ce16ce04c8ce14cd58fa02cb1f01fa02cb1fcb3fca00c910384940206e953059f45a30944133f415e2718810275a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb004034c87f01ca0055405045ce12cbffcb1ff400f400c9ed5415002a00000000436865636b706f696e742072657761726401ea31d31f30f8416f2410235f03258101012359f40d6fa192306ddf206e92306d8e1bd0fa40fa40d401d001fa00d31ffa00d31fd33fd20055806c196f09e281209a216eb3f2f4206ef2d0806f2981452551a9c7051af2f4812fbef82322bcf2f48200f3535009f2f45320a122a82755518101010a70c81702e855805089ce16ce04c8ce14cd58fa02cb1f01fa02cb1fcb3fca00c910384840206e953059f45a30944133f415e221c2008ebc7188103710275a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb00923530e240341819002800000000556e636c61696d656420726566756e64002cc87f01ca0055405045ce12cbffcb1ff400f400c9ed5400ac8e4ed33f30c8018210aff90f5758cb1fcb3fc910354430f84270705003804201503304c8cf8580ca00cf8440ce01fa02806acf40f400c901fb00c87f01ca0055405045ce12cbffcb1ff400f400c9ed54e05f06f2c082a59360f2');
+    const __code = Cell.fromHex('b5ee9c724102210100078100022cff008e88f4a413f4bcf2c80bed53208e8130e1ed43d90112020271020d02012003050173bbbe4ed44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de2db3c6c61804000223020120060b020162070901a2a837ed44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de25505db3c6c61206e92306d99206ef2d0806f2b6f0be2206e92306dde08013a810101240259f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be21c0172a91ded44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de2db3c6c610a0002250177b7205da89a1a400031c35f481a7ffa63fe809a803a1e809e80860204c204a20482046d82d3ff481020203ae00b205a202e0dadadbc4aa2bb678d8c300c0040c812cb1fcb1fc9f9008101012302714133f40c6fa19401d70030925b6de26eb30201200e100173b8bf5ed44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de2db3c6c6180f0002240177b8790ed44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de25515db3c6c618110058c812cb1f01cf16c9f900810101530250334133f40c6fa19401d70030925b6de2206eb395206ef2d080e0307004f601d072d721d200d200fa4021103450666f04f86102f862ed44d0d200018e1afa40d3ffd31ff404d401d0f404f4043010261025102410236c169ffa40810101d7005902d101706d6d6de207925f07e005d70d1ff2e082218210c2860504bae30221821048402acdbae3022182107b562c3fbae30221821070ccaed41315171b02fe31fa40d401d001d31fd33fd20030f8416f243032816cf022820afaf080bcf2f4816f8225c200f2f4f8235240bcf2e65301820afaf080a15304a9048108cd21c200f2f481010170f8237f265196109d108c106b105b433dc855a0db3cc925103501206e953059f45a30944133f415e2c85240cb1f5003cf16c9f900810101201d140070104913216e955b59f45a3098c801cf004133f442e201a41035441359c87f01ca0055505056ce13cbffcb1ff40001c8f40012f400cdc9ed5403f631d31f30f8416f243032238101012459f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b358120f121f2f48200efb8f82324bbf2f48200f4d22c8208989680bcf2f40b8208989680a15166a05305a904109a108a107a553006050c8101010dc855a0db3cc9453052401c1d1600f6206e953059f45a30944133f415e2c813cb1f5003cf16c9f90081010154580052304133f40c6fa19401d70030925b6de270216eb39630206ef2d0809131e281010104a02310491039216e955b59f45a3098c801cf004133f442e21035443012c87f01ca0055505056ce13cbffcb1ff40001c8f40012f400cdc9ed5402ee31d31fd31fd430d0f8416f2410235f03248101012559f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b8120f158f2f48200d92d51b9c7051bf2f48200efb8f82323bbf2f48200a85353c5b9f2f4c852d0cb1f52c0cb1fc9f9008200e1e5561381010123711c1803fc4133f40c6fa19401d70030925b6de26ef2f4c852e0cb1f1dcb1f28cf16c9f9008200bd110c5611f9101bf2f401111001810101500b7f71216e955b59f45a3098c801cf004133f442e20fa45302b98101015373103d4cdbc855a0db3cc9103514206e953059f45a30944133f415e27188103410245a6d6d40037fc8cf85801d191a002a00000000436865636b706f696e74207265776172640098ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb0010355512c87f01ca0055505056ce13cbffcb1ff40001c8f40012f400cdc9ed5404feba8ff431d31f30f8416f2410235f03228101012359f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b81452551cbc7051cf2f4812fbef82324bcf2f48200f35301f2f45342a124a8810101702b0a109b08107b06105b04103b401dc855a0db3cc910354540e0018210946a98b61c1d1e200034fa40fa40d401d001fa00d31ffa00d31fd33fd33fd200d20055a0003c50abce18ce06c8ce16cd5004fa0212cb1f01fa02cb1fcb3fcb3fca00ca0001e6206e953059f45a30944133f415e221c2008ebc7188103410245a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb00926c21e210355512c87f01ca0055505056ce13cbffcb1ff40001c8f40012f400cdc9ed541f002800000000556e636c61696d656420726566756e6400c0ba8e57d33f30c8018210aff90f5758cb1fcb3fc910461035443012f84270705003804201503304c8cf8580ca00cf8440ce01fa02806acf40f400c901fb00c87f01ca0055505056ce13cbffcb1ff40001c8f40012f400cdc9ed54e05f07f2c082b081f2f4');
     const builder = beginCell();
     builder.storeUint(0, 1);
     initProductivityEscrow_init_args({ $$type: 'ProductivityEscrow_init_args', owner, verifierPublicKey })(builder);
@@ -1269,6 +1340,7 @@ export const ProductivityEscrow_errors = {
     57829: { message: "Checkpoint already claimed" },
     61368: { message: "Challenge has expired" },
     62291: { message: "Challenge already closed" },
+    62674: { message: "Must send more than 0.01 TON" },
 } as const
 
 export const ProductivityEscrow_errors_backward = {
@@ -1322,6 +1394,7 @@ export const ProductivityEscrow_errors_backward = {
     "Checkpoint already claimed": 57829,
     "Challenge has expired": 61368,
     "Challenge already closed": 62291,
+    "Must send more than 0.01 TON": 62674,
 } as const
 
 const ProductivityEscrow_types: ABIType[] = [
@@ -1340,11 +1413,12 @@ const ProductivityEscrow_types: ABIType[] = [
     {"name":"FactoryDeploy","header":1829761339,"fields":[{"name":"queryId","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"cashback","type":{"kind":"simple","type":"address","optional":false}}]},
     {"name":"ChangeOwner","header":2174598809,"fields":[{"name":"queryId","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"newOwner","type":{"kind":"simple","type":"address","optional":false}}]},
     {"name":"ChangeOwnerOk","header":846932810,"fields":[{"name":"queryId","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"newOwner","type":{"kind":"simple","type":"address","optional":false}}]},
-    {"name":"CreateChallenge","header":4032046032,"fields":[{"name":"beneficiary","type":{"kind":"simple","type":"address","optional":false}},{"name":"challengeId","type":{"kind":"simple","type":"string","optional":false}},{"name":"totalCheckpoints","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"endDate","type":{"kind":"simple","type":"uint","optional":false,"format":64}}]},
+    {"name":"CreateChallenge","header":3263563012,"fields":[{"name":"beneficiary","type":{"kind":"simple","type":"address","optional":false}},{"name":"challengeId","type":{"kind":"simple","type":"string","optional":false}},{"name":"totalCheckpoints","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"endDate","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"unlisted","type":{"kind":"simple","type":"bool","optional":false}}]},
+    {"name":"AddFunds","header":1212164813,"fields":[{"name":"challengeIdx","type":{"kind":"simple","type":"uint","optional":false,"format":32}}]},
     {"name":"ClaimCheckpoint","header":2069244991,"fields":[{"name":"challengeIdx","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"checkpointIndex","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"signature","type":{"kind":"simple","type":"slice","optional":false}}]},
     {"name":"RefundUnclaimed","header":1892462292,"fields":[{"name":"challengeIdx","type":{"kind":"simple","type":"uint","optional":false,"format":32}}]},
-    {"name":"ChallengeData","header":null,"fields":[{"name":"sponsor","type":{"kind":"simple","type":"address","optional":false}},{"name":"beneficiary","type":{"kind":"simple","type":"address","optional":false}},{"name":"challengeId","type":{"kind":"simple","type":"string","optional":false}},{"name":"totalDeposit","type":{"kind":"simple","type":"uint","optional":false,"format":"coins"}},{"name":"totalCheckpoints","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"amountPerCheckpoint","type":{"kind":"simple","type":"uint","optional":false,"format":"coins"}},{"name":"claimedCount","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"endDate","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"active","type":{"kind":"simple","type":"bool","optional":false}}]},
-    {"name":"ProductivityEscrow$Data","header":null,"fields":[{"name":"owner","type":{"kind":"simple","type":"address","optional":false}},{"name":"verifierPublicKey","type":{"kind":"simple","type":"uint","optional":false,"format":256}},{"name":"challengeCount","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"challenges","type":{"kind":"dict","key":"int","value":"ChallengeData","valueFormat":"ref"}},{"name":"claimedCheckpoints","type":{"kind":"dict","key":"int","value":"bool"}}]},
+    {"name":"ChallengeData","header":null,"fields":[{"name":"sponsor","type":{"kind":"simple","type":"address","optional":false}},{"name":"beneficiary","type":{"kind":"simple","type":"address","optional":false}},{"name":"challengeId","type":{"kind":"simple","type":"string","optional":false}},{"name":"totalDeposit","type":{"kind":"simple","type":"uint","optional":false,"format":"coins"}},{"name":"totalCheckpoints","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"amountPerCheckpoint","type":{"kind":"simple","type":"uint","optional":false,"format":"coins"}},{"name":"claimedCount","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"endDate","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"createdAt","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"active","type":{"kind":"simple","type":"bool","optional":false}},{"name":"unlisted","type":{"kind":"simple","type":"bool","optional":false}}]},
+    {"name":"ProductivityEscrow$Data","header":null,"fields":[{"name":"owner","type":{"kind":"simple","type":"address","optional":false}},{"name":"verifierPublicKey","type":{"kind":"simple","type":"uint","optional":false,"format":256}},{"name":"challengeCount","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"challenges","type":{"kind":"dict","key":"int","value":"ChallengeData","valueFormat":"ref"}},{"name":"claimedCheckpoints","type":{"kind":"dict","key":"int","value":"bool"}},{"name":"sponsorContributions","type":{"kind":"dict","key":"int","value":"int"}}]},
 ]
 
 const ProductivityEscrow_opcodes = {
@@ -1353,7 +1427,8 @@ const ProductivityEscrow_opcodes = {
     "FactoryDeploy": 1829761339,
     "ChangeOwner": 2174598809,
     "ChangeOwnerOk": 846932810,
-    "CreateChallenge": 4032046032,
+    "CreateChallenge": 3263563012,
+    "AddFunds": 1212164813,
     "ClaimCheckpoint": 2069244991,
     "RefundUnclaimed": 1892462292,
 }
@@ -1362,6 +1437,7 @@ const ProductivityEscrow_getters: ABIGetter[] = [
     {"name":"challengeCount","methodId":80868,"arguments":[],"returnType":{"kind":"simple","type":"int","optional":false,"format":257}},
     {"name":"challenge","methodId":81975,"arguments":[{"name":"idx","type":{"kind":"simple","type":"int","optional":false,"format":257}}],"returnType":{"kind":"simple","type":"ChallengeData","optional":true}},
     {"name":"isCheckpointClaimed","methodId":96514,"arguments":[{"name":"challengeIdx","type":{"kind":"simple","type":"int","optional":false,"format":257}},{"name":"checkpointIdx","type":{"kind":"simple","type":"int","optional":false,"format":257}}],"returnType":{"kind":"simple","type":"bool","optional":false}},
+    {"name":"sponsorContribution","methodId":116624,"arguments":[{"name":"challengeIdx","type":{"kind":"simple","type":"int","optional":false,"format":257}},{"name":"sponsor","type":{"kind":"simple","type":"address","optional":false}}],"returnType":{"kind":"simple","type":"int","optional":false,"format":257}},
     {"name":"verifierPublicKey","methodId":101365,"arguments":[],"returnType":{"kind":"simple","type":"int","optional":false,"format":257}},
     {"name":"owner","methodId":83229,"arguments":[],"returnType":{"kind":"simple","type":"address","optional":false}},
 ]
@@ -1370,12 +1446,14 @@ export const ProductivityEscrow_getterMapping: { [key: string]: string } = {
     'challengeCount': 'getChallengeCount',
     'challenge': 'getChallenge',
     'isCheckpointClaimed': 'getIsCheckpointClaimed',
+    'sponsorContribution': 'getSponsorContribution',
     'verifierPublicKey': 'getVerifierPublicKey',
     'owner': 'getOwner',
 }
 
 const ProductivityEscrow_receivers: ABIReceiver[] = [
     {"receiver":"internal","message":{"kind":"typed","type":"CreateChallenge"}},
+    {"receiver":"internal","message":{"kind":"typed","type":"AddFunds"}},
     {"receiver":"internal","message":{"kind":"typed","type":"ClaimCheckpoint"}},
     {"receiver":"internal","message":{"kind":"typed","type":"RefundUnclaimed"}},
     {"receiver":"internal","message":{"kind":"typed","type":"Deploy"}},
@@ -1416,11 +1494,14 @@ export class ProductivityEscrow implements Contract {
         this.init = init;
     }
     
-    async send(provider: ContractProvider, via: Sender, args: { value: bigint, bounce?: boolean| null | undefined }, message: CreateChallenge | ClaimCheckpoint | RefundUnclaimed | Deploy) {
+    async send(provider: ContractProvider, via: Sender, args: { value: bigint, bounce?: boolean| null | undefined }, message: CreateChallenge | AddFunds | ClaimCheckpoint | RefundUnclaimed | Deploy) {
         
         let body: Cell | null = null;
         if (message && typeof message === 'object' && !(message instanceof Slice) && message.$$type === 'CreateChallenge') {
             body = beginCell().store(storeCreateChallenge(message)).endCell();
+        }
+        if (message && typeof message === 'object' && !(message instanceof Slice) && message.$$type === 'AddFunds') {
+            body = beginCell().store(storeAddFunds(message)).endCell();
         }
         if (message && typeof message === 'object' && !(message instanceof Slice) && message.$$type === 'ClaimCheckpoint') {
             body = beginCell().store(storeClaimCheckpoint(message)).endCell();
@@ -1459,6 +1540,15 @@ export class ProductivityEscrow implements Contract {
         builder.writeNumber(checkpointIdx);
         const source = (await provider.get('isCheckpointClaimed', builder.build())).stack;
         const result = source.readBoolean();
+        return result;
+    }
+    
+    async getSponsorContribution(provider: ContractProvider, challengeIdx: bigint, sponsor: Address) {
+        const builder = new TupleBuilder();
+        builder.writeNumber(challengeIdx);
+        builder.writeAddress(sponsor);
+        const source = (await provider.get('sponsorContribution', builder.build())).stack;
+        const result = source.readBigNumber();
         return result;
     }
     

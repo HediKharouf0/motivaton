@@ -1,9 +1,9 @@
 # Tact compilation report
 Contract: ProductivityEscrow
-BoC Size: 1445 bytes
+BoC Size: 1933 bytes
 
 ## Structures (Structs and Messages)
-Total structures: 20
+Total structures: 21
 
 ### DataSize
 TL-B: `_ cells:int257 bits:int257 refs:int257 = DataSize`
@@ -66,8 +66,12 @@ TL-B: `change_owner_ok#327b2b4a queryId:uint64 newOwner:address = ChangeOwnerOk`
 Signature: `ChangeOwnerOk{queryId:uint64,newOwner:address}`
 
 ### CreateChallenge
-TL-B: `create_challenge#f05423d0 beneficiary:address challengeId:^string totalCheckpoints:uint32 endDate:uint64 = CreateChallenge`
-Signature: `CreateChallenge{beneficiary:address,challengeId:^string,totalCheckpoints:uint32,endDate:uint64}`
+TL-B: `create_challenge#c2860504 beneficiary:address challengeId:^string totalCheckpoints:uint32 endDate:uint64 unlisted:bool = CreateChallenge`
+Signature: `CreateChallenge{beneficiary:address,challengeId:^string,totalCheckpoints:uint32,endDate:uint64,unlisted:bool}`
+
+### AddFunds
+TL-B: `add_funds#48402acd challengeIdx:uint32 = AddFunds`
+Signature: `AddFunds{challengeIdx:uint32}`
 
 ### ClaimCheckpoint
 TL-B: `claim_checkpoint#7b562c3f challengeIdx:uint32 checkpointIndex:uint32 signature:^slice = ClaimCheckpoint`
@@ -78,15 +82,15 @@ TL-B: `refund_unclaimed#70ccaed4 challengeIdx:uint32 = RefundUnclaimed`
 Signature: `RefundUnclaimed{challengeIdx:uint32}`
 
 ### ChallengeData
-TL-B: `_ sponsor:address beneficiary:address challengeId:^string totalDeposit:coins totalCheckpoints:uint32 amountPerCheckpoint:coins claimedCount:uint32 endDate:uint64 active:bool = ChallengeData`
-Signature: `ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,active:bool}`
+TL-B: `_ sponsor:address beneficiary:address challengeId:^string totalDeposit:coins totalCheckpoints:uint32 amountPerCheckpoint:coins claimedCount:uint32 endDate:uint64 createdAt:uint64 active:bool unlisted:bool = ChallengeData`
+Signature: `ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}`
 
 ### ProductivityEscrow$Data
-TL-B: `_ owner:address verifierPublicKey:uint256 challengeCount:uint32 challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,active:bool}> claimedCheckpoints:dict<int, bool> = ProductivityEscrow`
-Signature: `ProductivityEscrow{owner:address,verifierPublicKey:uint256,challengeCount:uint32,challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,active:bool}>,claimedCheckpoints:dict<int, bool>}`
+TL-B: `_ owner:address verifierPublicKey:uint256 challengeCount:uint32 challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}> claimedCheckpoints:dict<int, bool> sponsorContributions:dict<int, int> = ProductivityEscrow`
+Signature: `ProductivityEscrow{owner:address,verifierPublicKey:uint256,challengeCount:uint32,challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}>,claimedCheckpoints:dict<int, bool>,sponsorContributions:dict<int, int>}`
 
 ## Get methods
-Total get methods: 5
+Total get methods: 6
 
 ## challengeCount
 No arguments
@@ -97,6 +101,10 @@ Argument: idx
 ## isCheckpointClaimed
 Argument: challengeIdx
 Argument: checkpointIdx
+
+## sponsorContribution
+Argument: challengeIdx
+Argument: sponsor
 
 ## verifierPublicKey
 No arguments
@@ -155,6 +163,7 @@ No arguments
 * 57829: Checkpoint already claimed
 * 61368: Challenge has expired
 * 62291: Challenge already closed
+* 62674: Must send more than 0.01 TON
 
 ## Trait inheritance diagram
 

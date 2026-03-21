@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { TonConnectButton, useTonAddress } from "@tonconnect/ui-react";
-import { getAllChallenges, type OnChainChallenge } from "../contract";
+import { getAllChallenges, normalizeAddress, type OnChainChallenge } from "../contract";
 import { APP_LABELS, formatActionLabel, parseChallengeId } from "../types/challenge";
 
 type IndexedChallenge = OnChainChallenge & { index: number };
@@ -31,7 +31,10 @@ function ChallengeCard({ challenge }: { challenge: IndexedChallenge }) {
     <Link to={`/challenge/${challenge.index}`} className="challenge-card surface">
       <div className="challenge-card-top">
         <div>
-          <div className="challenge-card-app">{appLabel}</div>
+          <div className="challenge-card-app-row">
+            <div className="challenge-card-app">{appLabel}</div>
+            {challenge.unlisted && <span className="mini-pill">Unlisted</span>}
+          </div>
           <h3 className="challenge-card-title">{actionLabel}</h3>
         </div>
         <span className={`status-pill status-${status}`}>{status}</span>
@@ -79,6 +82,8 @@ export function Home() {
   const [error, setError] = useState("");
   const hasContractAddress = Boolean(import.meta.env.VITE_CONTRACT_ADDRESS);
 
+  const normalizedUserAddress = userAddress ? normalizeAddress(userAddress) : "";
+
   useEffect(() => {
     if (!hasContractAddress) return;
     setLoading(true);
@@ -93,8 +98,20 @@ export function Home() {
   }, [hasContractAddress]);
 
   const myChallenges = userAddress
-    ? challenges.filter((c) => c.sponsor === userAddress || c.beneficiary === userAddress)
+    ? challenges.filter((c) => {
+        const sponsor = normalizeAddress(c.sponsor);
+        const beneficiary = normalizeAddress(c.beneficiary);
+        return sponsor === normalizedUserAddress || beneficiary === normalizedUserAddress;
+      })
     : [];
+
+  useEffect(() => {
+    console.log("[Home] challenge counts", {
+      totalChallenges: challenges.length,
+      userChallenges: myChallenges.length,
+      userAddress,
+    });
+  }, [challenges.length, myChallenges.length, userAddress]);
 
   return (
     <div className="page">
@@ -134,16 +151,18 @@ export function Home() {
       <section className="detail-stack">
         <div className="section-header">
           <div>
-            <h2 className="section-title">Your challenges</h2>
+            <div className="title-with-pill">
+              <h2 className="section-title">Your challenges</h2>
+              {userAddress && (
+                <span className="inline-note" title={`${myChallenges.length} challenges`} aria-label={`${myChallenges.length} challenges`}>
+                  {myChallenges.length}
+                </span>
+              )}
+            </div>
             <p className="section-note">
               Only challenges where the connected wallet is the sponsor or beneficiary are shown here.
             </p>
           </div>
-          {userAddress && (
-            <span className="inline-note" title={`${myChallenges.length} challenges`} aria-label={`${myChallenges.length} challenges`}>
-              {myChallenges.length}
-            </span>
-          )}
         </div>
         {!userAddress && (
           <div className="empty-state">

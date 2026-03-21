@@ -120,3 +120,96 @@ Key files:
 
 Follow-up gaps:
 - The responsive foundation is better, but it should still be checked on real Telegram mobile devices to validate spacing, keyboard behavior, and TonConnect interactions.
+
+### 2026-03-21 - Miniapp Contract UI Alignment For Unlisted And Add-Funds
+
+Summary:
+- Updated the miniapp create flow to support `unlisted` challenges and reflect visibility in the summary panel.
+- Added unlisted indicators in the home challenge cards and in the challenge detail header.
+- Extended the challenge detail page with add-funds UI, per-wallet contribution loading, a `Your stake` stat, and creator/backer context based on on-chain contribution data.
+
+Why it matters now:
+- The frontend now exposes the new contract capabilities around private listings and pooled backing instead of leaving them inaccessible from the UI.
+- Future work on browse visibility, contributor UX, and backer-specific flows can build on actual on-chain contribution data already present in the detail page.
+
+Key files:
+- `apps/miniapp/src/contract.ts`
+- `apps/miniapp/src/pages/CreateChallenge.tsx`
+- `apps/miniapp/src/pages/Home.tsx`
+- `apps/miniapp/src/pages/ChallengeDetail.tsx`
+- `apps/miniapp/src/index.css`
+
+Follow-up gaps:
+- The home screen currently remains participant-only and does not reintroduce a public browse section yet.
+- Real-device testing is still needed for the add-funds flow and unlisted challenge UX inside Telegram.
+
+### 2026-03-21 - Getter Parsing Fix For Contract Challenge Loading
+
+Summary:
+- Fixed the raw TON getter parsing used by both the miniapp and backend chain helpers.
+- Replaced the previous fragile assumptions about Toncenter stack JSON shape with normalization helpers that accept both object-style and array-style stack items.
+- Restored challenge loading for the home screen and detail flows after the contract data shape changed and the old parser started throwing at runtime.
+
+Why it matters now:
+- The miniapp can load on-chain challenges again instead of failing with `Cannot read properties of undefined (reading 'number')`.
+- Backend routes that read challenge data from chain now use the same more robust decoding path instead of carrying the same breakage.
+
+Key files:
+- `apps/miniapp/src/contract.ts`
+- `apps/backend/src/chain.ts`
+
+Follow-up gaps:
+- This fixes the getter JSON decoding issue, but the broader contract and verification correctness issues previously identified in review still need separate implementation work.
+
+### 2026-03-21 - Challenge Ownership Normalization In Miniapp
+
+Summary:
+- Hardened the miniapp ownership checks so wallet addresses and on-chain addresses are compared in normalized raw form instead of raw string equality.
+- Extended the getter boolean decoding to accept non-numeric boolean-shaped stack items as well as numeric encodings.
+- This specifically addresses the case where a freshly created challenge loaded from chain but still failed to appear in `Your challenges`.
+
+Why it matters now:
+- The home screen and detail page no longer depend on TonConnect and RPC responses using the exact same user-friendly address formatting.
+- Newly created challenges have a much better chance of showing up immediately once the chain getter returns them.
+
+Key files:
+- `apps/miniapp/src/contract.ts`
+- `apps/miniapp/src/pages/Home.tsx`
+- `apps/miniapp/src/pages/ChallengeDetail.tsx`
+- `apps/backend/src/chain.ts`
+
+Follow-up gaps:
+- Creation still navigates back immediately after wallet submission, so there can still be a short indexing delay before a new challenge appears from chain.
+
+### 2026-03-21 - Create Flow Waits For Challenge Indexing
+
+Summary:
+- Updated the miniapp create flow to wait for the newly submitted challenge to appear through the chain getter before navigating back home.
+- Added a transient status message during wallet confirmation and indexing wait.
+- Adjusted the home section heading so the challenge count bubble sits inline with the `Your challenges` title.
+
+Why it matters now:
+- Users no longer bounce back to an empty list immediately after creating a challenge just because the getter has not caught up yet.
+- The home header now presents the list title and count in a more compact, predictable layout.
+
+Key files:
+- `apps/miniapp/src/pages/CreateChallenge.tsx`
+- `apps/miniapp/src/pages/Home.tsx`
+- `apps/miniapp/src/index.css`
+
+Follow-up gaps:
+- The wait is polling-based and still depends on the challenge becoming visible from the contract getter within the timeout window.
+
+### 2026-03-21 - Create Flow Navigates Directly To New Challenge
+
+Summary:
+- Adjusted the create flow so that, once the new challenge becomes visible from the chain getter, the miniapp navigates directly to that challenge detail page instead of returning to the home list.
+
+Why it matters now:
+- Users land on the challenge they just created immediately, which is more reliable than expecting them to spot it in the list after indexing completes.
+
+Key files:
+- `apps/miniapp/src/pages/CreateChallenge.tsx`
+
+Follow-up gaps:
+- This still depends on polling the chain getter and therefore inherits the same timeout behavior as the indexing wait flow.
