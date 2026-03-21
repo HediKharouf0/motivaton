@@ -5,15 +5,17 @@ import { getAllAccounts, addProgress, filterAndMarkProcessed } from "../store.js
 
 export const webhookRouter = Router();
 
-const WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || "";
+function getWebhookSecret(): string {
+  return process.env.GITHUB_WEBHOOK_SECRET || "";
+}
 
 function normalizeAddress(addr: string): string {
   return addr.replace(/[-_]/g, (c) => (c === "-" ? "+" : "/"));
 }
 
 function verifySignature(payload: Buffer, signature: string): boolean {
-  if (!WEBHOOK_SECRET) return false;
-  const expected = `sha256=${createHmac("sha256", WEBHOOK_SECRET).update(payload).digest("hex")}`;
+  if (!getWebhookSecret()) return false;
+  const expected = `sha256=${createHmac("sha256", getWebhookSecret()).update(payload).digest("hex")}`;
   if (expected.length !== signature.length) return false;
   return timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
 }
@@ -21,7 +23,7 @@ function verifySignature(payload: Buffer, signature: string): boolean {
 webhookRouter.post("/github", express.raw({ type: "application/json" }), async (req, res) => {
   const signature = req.headers["x-hub-signature-256"] as string;
 
-  if (WEBHOOK_SECRET && (!signature || !verifySignature(req.body as Buffer, signature))) {
+  if (getWebhookSecret() && (!signature || !verifySignature(req.body as Buffer, signature))) {
     res.status(401).json({ error: "Invalid signature" });
     return;
   }

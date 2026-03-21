@@ -93,13 +93,16 @@ async function eventsProgressJob(lookbackMs: number) {
 
 /** Primary job: every minute, 5-minute lookback. */
 async function minuteJob() {
+  console.log("[cron] Starting minute job");
   await eventsProgressJob(5 * 60_000);
+  console.log("[cron] Minute job done");
 }
 
 /** Catchup job: every 15 minutes, 1-hour lookback. */
 async function catchupJob() {
-  console.log("[cron] Running catchup sweep (1-hour lookback)");
+  console.log("[cron] Starting catchup sweep (1-hour lookback)");
   await eventsProgressJob(60 * 60_000);
+  console.log("[cron] Catchup sweep done");
 }
 
 export function startCronJobs() {

@@ -5,8 +5,12 @@ import { verifyGitHubToken } from "../github.js";
 
 export const authRouter = Router();
 
-const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID || "";
-const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET || "";
+function getGitHubClientId(): string {
+  return process.env.GITHUB_CLIENT_ID || "";
+}
+function getGitHubClientSecret(): string {
+  return process.env.GITHUB_CLIENT_SECRET || "";
+}
 
 // Pending OAuth flows: state -> { wallet, returnPath, expiry }
 const pendingOAuth = new Map<string, { wallet: string; returnPath: string; expiry: number }>();
@@ -32,7 +36,7 @@ authRouter.post("/github/start", (req, res) => {
     return;
   }
 
-  if (!GITHUB_CLIENT_ID) {
+  if (!getGitHubClientId()) {
     res.status(500).json({ error: "GitHub OAuth not configured. Set GITHUB_CLIENT_ID." });
     return;
   }
@@ -41,7 +45,7 @@ authRouter.post("/github/start", (req, res) => {
   pendingOAuth.set(state, { wallet: walletAddress, returnPath: returnPath || "/", expiry: Date.now() + 10 * 60 * 1000 });
 
   const params = new URLSearchParams({
-    client_id: GITHUB_CLIENT_ID,
+    client_id: getGitHubClientId(),
     redirect_uri: `${process.env.PUBLIC_URL || ""}/api/auth/github/callback`,
     scope: "read:user",
     state,
@@ -74,8 +78,8 @@ authRouter.get("/github/callback", async (req, res) => {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify({
-      client_id: GITHUB_CLIENT_ID,
-      client_secret: GITHUB_CLIENT_SECRET,
+      client_id: getGitHubClientId(),
+      client_secret: getGitHubClientSecret(),
       code,
     }),
   });

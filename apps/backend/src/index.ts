@@ -3,7 +3,10 @@ import { resolve } from "path";
 
 // In production, env vars are set by Railway; locally, load from .env.local
 if (process.env.NODE_ENV !== "production") {
-  config({ path: resolve(import.meta.dirname, "../../.env.local") });
+  const envPath = resolve(import.meta.dirname, "../../../.env.local");
+  const result = config({ path: envPath });
+  console.log(`[env] Loading ${envPath}`, result.error ? `FAILED: ${result.error.message}` : "OK");
+  console.log(`[env] CONTRACT_ADDRESS=${process.env.CONTRACT_ADDRESS || "(not set)"}`);
 }
 
 import express from "express";
@@ -40,10 +43,11 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
 });
 
-// Serve frontend static files in production
+// Serve frontend static files in production (skip /api paths)
 const frontendDist = resolve(import.meta.dirname, "../../miniapp/dist");
 app.use(express.static(frontendDist));
-app.get("/{*splat}", (_req, res) => {
+app.get("/{*splat}", (req, res, next) => {
+  if (req.path.startsWith("/api")) return next();
   res.sendFile(resolve(frontendDist, "index.html"));
 });
 

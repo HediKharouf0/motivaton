@@ -1,8 +1,14 @@
 import { Cell } from "@ton/ton";
 
-const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS || "";
-const TON_ENDPOINT = process.env.TON_ENDPOINT || "https://testnet.toncenter.com/api/v2/jsonRPC";
-const TON_API_KEY = process.env.TON_API_KEY || "";
+function getContractAddress(): string {
+  return process.env.CONTRACT_ADDRESS || "";
+}
+function getTonEndpoint(): string {
+  return process.env.TON_ENDPOINT || "https://testnet.toncenter.com/api/v2/jsonRPC";
+}
+function getTonApiKey(): string {
+  return process.env.TON_API_KEY || "";
+}
 
 export interface OnChainChallenge {
   sponsor: string;
@@ -108,8 +114,9 @@ function getBooleanValue(item: unknown): boolean {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function rpcCall(method: string, params: Record<string, any>): Promise<any> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (TON_API_KEY) headers["X-API-Key"] = TON_API_KEY;
-  const resp = await fetch(TON_ENDPOINT, {
+  const apiKey = getTonApiKey();
+  if (apiKey) headers["X-API-Key"] = apiKey;
+  const resp = await fetch(getTonEndpoint(), {
     method: "POST",
     headers,
     body: JSON.stringify({ id: "1", jsonrpc: "2.0", method, params }),
@@ -146,6 +153,7 @@ function parseChallengeFromElements(elements: unknown[]): OnChainChallenge {
 }
 
 export async function getChallenge(idx: number): Promise<OnChainChallenge | null> {
+  const CONTRACT_ADDRESS = getContractAddress();
   if (!CONTRACT_ADDRESS) throw new Error("CONTRACT_ADDRESS env var is not set.");
   const result = await rpcCall("runGetMethod", {
     address: CONTRACT_ADDRESS,
@@ -160,6 +168,7 @@ export async function getChallenge(idx: number): Promise<OnChainChallenge | null
 }
 
 export async function getChallengeCount(): Promise<number> {
+  const CONTRACT_ADDRESS = getContractAddress();
   if (!CONTRACT_ADDRESS) throw new Error("CONTRACT_ADDRESS env var is not set.");
   const result = await rpcCall("runGetMethod", {
     address: CONTRACT_ADDRESS,
