@@ -371,7 +371,8 @@ export function ChallengeDetail() {
   const showOAuthConnectPrompt = isBeneficiary && challenge.active && !expired && oauthAppKey !== null && !appConnected;
   const showOAuthConnectedState = isBeneficiary && challenge.active && oauthAppKey !== null && appConnected;
   const showOAuthEndedWarning = isBeneficiary && challenge.active && expired && oauthAppKey !== null && !appConnected;
-  const canClaimRewards = isBeneficiary && challenge.active && (expired || fullyCompleted);
+  const allClaimed = challenge.claimedCount >= challenge.totalCheckpoints;
+  const canClaimRewards = isBeneficiary && challenge.active && !allClaimed && (expired || fullyCompleted);
   const showManualVerificationInput = canClaimRewards && appKey === "DUOLINGO";
 
   return (
