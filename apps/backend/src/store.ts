@@ -1,26 +1,48 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
-import { resolve } from "path";
+import Database from "better-sqlite3";
+import { mkdirSync, existsSync } from "fs";
+import { resolve, dirname } from "path";
 
-const DATA_DIR = resolve(import.meta.dirname, "../data");
-const ACCOUNTS_FILE = resolve(DATA_DIR, "accounts.json");
-const PROGRESS_FILE = resolve(DATA_DIR, "progress.json");
-const PROCESSED_EVENTS_FILE = resolve(DATA_DIR, "processed_events.json");
+const DB_PATH = process.env.DATABASE_PATH || resolve(import.meta.dirname, "../data/motivaton.db");
 
-function ensureDir() {
-  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+function getDb(): Database.Database {
+  const dir = dirname(DB_PATH);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+  const db = new Database(DB_PATH);
+  db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS accounts (
+      wallet_address TEXT PRIMARY KEY,
+      github_access_token TEXT,
+      github_username TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS progress (
+      challenge_idx INTEGER PRIMARY KEY,
+      count INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS processed_events (
+      wallet_address TEXT NOT NULL,
+      event_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      timestamp INTEGER NOT NULL,
+      PRIMARY KEY (wallet_address, event_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_processed_events_timestamp
+      ON processed_events (timestamp);
+  `);
+
+  return db;
 }
 
-function readJson<T>(path: string, fallback: T): T {
-  try {
-    return JSON.parse(readFileSync(path, "utf-8"));
-  } catch {
-    return fallback;
-  }
-}
-
-function writeJson(path: string, data: unknown) {
-  ensureDir();
-  writeFileSync(path, JSON.stringify(data, null, 2));
+let _db: Database.Database | null = null;
+function db(): Database.Database {
+  if (!_db) _db = getDb();
+  return _db;
 }
 
 // -- Account linking: walletAddress -> app credentials --
@@ -34,88 +56,108 @@ export interface AppCredentials {
   github?: GitHubCredentials;
 }
 
+function rowToCredentials(row: { github_access_token: string | null; github_username: string | null }): AppCredentials {
+  const creds: AppCredentials = {};
+  if (row.github_access_token && row.github_username) {
+    creds.github = { accessToken: row.github_access_token, username: row.github_username };
+  }
+  return creds;
+}
+
 export function getAccount(walletAddress: string): AppCredentials | null {
-  const accounts = readJson<Record<string, AppCredentials>>(ACCOUNTS_FILE, {});
-  return accounts[walletAddress] || null;
+  const row = db().prepare("SELECT github_access_token, github_username FROM accounts WHERE wallet_address = ?").get(walletAddress) as { github_access_token: string | null; github_username: string | null } | undefined;
+  if (!row) return null;
+  const creds = rowToCredentials(row);
+  return Object.keys(creds).length > 0 ? creds : null;
 }
 
 export function setAccount(walletAddress: string, creds: Partial<AppCredentials>) {
-  const accounts = readJson<Record<string, AppCredentials>>(ACCOUNTS_FILE, {});
-  accounts[walletAddress] = { ...accounts[walletAddress], ...creds };
-  writeJson(ACCOUNTS_FILE, accounts);
+  if (creds.github) {
+    db().prepare(`
+      INSERT INTO accounts (wallet_address, github_access_token, github_username)
+      VALUES (?, ?, ?)
+      ON CONFLICT(wallet_address) DO UPDATE SET
+        github_access_token = excluded.github_access_token,
+        github_username = excluded.github_username
+    `).run(walletAddress, creds.github.accessToken, creds.github.username);
+  }
 }
 
 export function removeAccountApp(walletAddress: string, app: keyof AppCredentials) {
-  const accounts = readJson<Record<string, AppCredentials>>(ACCOUNTS_FILE, {});
-  if (accounts[walletAddress]) {
-    delete accounts[walletAddress][app];
-    writeJson(ACCOUNTS_FILE, accounts);
+  if (app === "github") {
+    db().prepare("UPDATE accounts SET github_access_token = NULL, github_username = NULL WHERE wallet_address = ?").run(walletAddress);
   }
 }
 
 export function getAllAccounts(): Record<string, AppCredentials> {
-  return readJson<Record<string, AppCredentials>>(ACCOUNTS_FILE, {});
+  const rows = db().prepare("SELECT wallet_address, github_access_token, github_username FROM accounts").all() as { wallet_address: string; github_access_token: string | null; github_username: string | null }[];
+  const result: Record<string, AppCredentials> = {};
+  for (const row of rows) {
+    const creds = rowToCredentials(row);
+    if (Object.keys(creds).length > 0) {
+      result[row.wallet_address] = creds;
+    }
+  }
+  return result;
 }
 
 // -- Challenge progress: challengeIdx -> cumulative count --
 
 export function getProgress(challengeIdx: number): number {
-  const progress = readJson<Record<string, number>>(PROGRESS_FILE, {});
-  return progress[String(challengeIdx)] || 0;
+  const row = db().prepare("SELECT count FROM progress WHERE challenge_idx = ?").get(challengeIdx) as { count: number } | undefined;
+  return row?.count ?? 0;
 }
 
 export function addProgress(challengeIdx: number, increment: number) {
-  const progress = readJson<Record<string, number>>(PROGRESS_FILE, {});
-  const key = String(challengeIdx);
-  progress[key] = (progress[key] || 0) + increment;
-  writeJson(PROGRESS_FILE, progress);
+  db().prepare(`
+    INSERT INTO progress (challenge_idx, count) VALUES (?, ?)
+    ON CONFLICT(challenge_idx) DO UPDATE SET count = count + excluded.count
+  `).run(challengeIdx, increment);
 }
 
 export function getAllProgress(): Record<string, number> {
-  return readJson<Record<string, number>>(PROGRESS_FILE, {});
+  const rows = db().prepare("SELECT challenge_idx, count FROM progress").all() as { challenge_idx: number; count: number }[];
+  const result: Record<string, number> = {};
+  for (const row of rows) {
+    result[String(row.challenge_idx)] = row.count;
+  }
+  return result;
 }
 
 // -- Processed event deduplication --
 
-interface ProcessedEvent {
-  t: number;
-  a: string;
-}
-
-/**
- * Atomically filters event IDs against already-processed ones, marks new ones,
- * and returns only the truly new IDs.
- */
 export function filterAndMarkProcessed(
   walletAddress: string,
   eventIds: string[],
   action: string,
 ): string[] {
-  const all = readJson<Record<string, Record<string, ProcessedEvent>>>(PROCESSED_EVENTS_FILE, {});
-  if (!all[walletAddress]) all[walletAddress] = {};
+  if (eventIds.length === 0) return [];
 
-  const newIds = eventIds.filter((id) => !all[walletAddress][id]);
-  if (newIds.length === 0) return [];
+  const txn = db().transaction(() => {
+    const placeholders = eventIds.map(() => "?").join(",");
+    const existingRows = db().prepare(
+      `SELECT event_id FROM processed_events WHERE wallet_address = ? AND event_id IN (${placeholders})`,
+    ).all(walletAddress, ...eventIds) as { event_id: string }[];
 
-  const now = Date.now();
-  for (const id of newIds) {
-    all[walletAddress][id] = { t: now, a: action };
-  }
-  writeJson(PROCESSED_EVENTS_FILE, all);
-  return newIds;
+    const existingSet = new Set(existingRows.map((r) => r.event_id));
+    const newIds = eventIds.filter((id) => !existingSet.has(id));
+    if (newIds.length === 0) return [];
+
+    const insert = db().prepare(
+      "INSERT OR IGNORE INTO processed_events (wallet_address, event_id, action, timestamp) VALUES (?, ?, ?, ?)",
+    );
+    const now = Date.now();
+    for (const id of newIds) {
+      insert.run(walletAddress, id, action, now);
+    }
+
+    return newIds;
+  });
+
+  return txn();
 }
 
-/**
- * Removes processed event entries older than maxAgeMs (default 1 hour).
- */
 export function cleanupProcessedEvents(maxAgeMs: number = 3600_000) {
-  const all = readJson<Record<string, Record<string, ProcessedEvent>>>(PROCESSED_EVENTS_FILE, {});
   const cutoff = Date.now() - maxAgeMs;
-  for (const wallet of Object.keys(all)) {
-    for (const id of Object.keys(all[wallet])) {
-      if (all[wallet][id].t < cutoff) delete all[wallet][id];
-    }
-    if (Object.keys(all[wallet]).length === 0) delete all[wallet];
-  }
-  writeJson(PROCESSED_EVENTS_FILE, all);
+  db().prepare("DELETE FROM processed_events WHERE timestamp < ?").run(cutoff);
 }
