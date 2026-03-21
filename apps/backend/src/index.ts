@@ -9,6 +9,8 @@ if (process.env.NODE_ENV !== "production") {
 import express from "express";
 import cors from "cors";
 import { verifyRouter } from "./routes/verify.js";
+import { authRouter } from "./routes/auth.js";
+import { startCronJobs, dailyProgressJob } from "./cron.js";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001", 10);
@@ -17,6 +19,17 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/verify", verifyRouter);
+app.use("/api/auth", authRouter);
+
+// Manual cron trigger for testing
+app.post("/api/cron/trigger", async (_req, res) => {
+  try {
+    await dailyProgressJob();
+    res.json({ ok: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok" });
@@ -31,4 +44,5 @@ app.get("/{*splat}", (_req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Motivaton backend running on http://localhost:${PORT}`);
+  startCronJobs();
 });

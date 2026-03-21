@@ -158,3 +158,24 @@ export async function getChallenge(idx: number): Promise<OnChainChallenge | null
   if (!elements) return null;
   return parseChallengeFromElements(elements);
 }
+
+export async function getChallengeCount(): Promise<number> {
+  if (!CONTRACT_ADDRESS) throw new Error("CONTRACT_ADDRESS env var is not set.");
+  const result = await rpcCall("runGetMethod", {
+    address: CONTRACT_ADDRESS,
+    method: "challengeCount",
+    stack: [],
+  });
+  return Number(getBigIntValue(result.stack[0]));
+}
+
+export async function getAllChallenges(): Promise<(OnChainChallenge & { index: number })[]> {
+  const count = await getChallengeCount();
+  if (count === 0) return [];
+  const results = await Promise.all(
+    Array.from({ length: count }, (_, i) =>
+      getChallenge(i).then((c) => (c ? { ...c, index: i } : null)),
+    ),
+  );
+  return results.filter((c): c is OnChainChallenge & { index: number } => c !== null);
+}

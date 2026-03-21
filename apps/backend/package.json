@@ -14,11 +14,13 @@
     "@ton/ton": "^15.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.0.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "node-cron": "^4.2.1"
   },
   "devDependencies": {
     "@types/cors": "^2.8.0",
     "@types/express": "^5.0.0",
+    "@types/node-cron": "^3.0.11",
     "tsx": "^4.0.0",
     "typescript": "^5.8.3"
   }

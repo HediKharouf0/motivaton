@@ -13,8 +13,15 @@ import {
   toNano,
   type OnChainChallenge,
 } from "../contract";
-import { backendApi, type VerificationResult } from "../api";
+import { backendApi, type VerificationResult, type AuthStatus } from "../api";
 import { APP_LABELS, formatActionLabel, parseChallengeId } from "../types/challenge";
+
+const OAUTH_APPS = ["github"] as const;
+
+function getOAuthAppKey(appKey: string): (typeof OAUTH_APPS)[number] | null {
+  const authKey = appKey.toLowerCase() as (typeof OAUTH_APPS)[number];
+  return OAUTH_APPS.includes(authKey) ? authKey : null;
+}
 
 export function ChallengeDetail() {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +43,8 @@ export function ChallengeDetail() {
   const [userContribution, setUserContribution] = useState<bigint | null>(null);
   const [creatorContribution, setCreatorContribution] = useState<bigint | null>(null);
   const [duolingoInput, setDuolingoInput] = useState("");
+  const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
+  const [connecting, setConnecting] = useState(false);
 
   const idx = parseInt(id || "0", 10);
 
@@ -66,15 +75,21 @@ export function ChallengeDetail() {
           : getSponsorContribution(idx, userAddress)
         : Promise.resolve(0n);
 
-      const [claimed, creatorStake, currentUserStake] = await Promise.all([
+      const authStatusPromise = userAddress
+        ? backendApi.getAuthStatus(userAddress).catch(() => null)
+        : Promise.resolve(null);
+
+      const [claimed, creatorStake, currentUserStake, auth] = await Promise.all([
         claimedPromise,
         creatorContributionPromise,
         userContributionPromise,
+        authStatusPromise,
       ]);
 
       setClaimedMap(claimed);
       setCreatorContribution(creatorStake);
       setUserContribution(userAddress ? currentUserStake : null);
+      setAuthStatus(auth);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -168,6 +183,44 @@ export function ChallengeDetail() {
     }
   }
 
+  async function handleConnectApp() {
+    if (!userAddress || !challenge) return;
+    const { app } = parseChallengeId(challenge.challengeId);
+    const oauthAppKey = getOAuthAppKey(app);
+
+    if (!oauthAppKey) return;
+
+    setConnecting(true);
+    try {
+      switch (oauthAppKey) {
+        case "github": {
+          const { url } = await backendApi.startGitHubOAuth(userAddress);
+          const popup = window.open(url, "oauth", "width=600,height=700");
+
+          if (!popup) {
+            throw new Error("Popup blocked. Allow popups and try again.");
+          }
+
+          await new Promise<void>((resolve) => {
+            const interval = setInterval(() => {
+              if (popup.closed) {
+                clearInterval(interval);
+                resolve();
+              }
+            }, 500);
+          });
+          const auth = await backendApi.getAuthStatus(userAddress);
+          setAuthStatus(auth);
+          break;
+        }
+      }
+    } catch (e: any) {
+      alert(e.message || "Connection failed.");
+    } finally {
+      setConnecting(false);
+    }
+  }
+
   async function handleAddFunds() {
     if (!challenge) return;
     if (!userAddress) {
@@ -256,6 +309,14 @@ export function ChallengeDetail() {
   const normalizedUserAddress = userAddress ? normalizeAddress(userAddress) : "";
   const isBeneficiary = normalizedUserAddress !== "" && normalizeAddress(challenge.beneficiary) === normalizedUserAddress;
   const isSponsor = normalizedUserAddress !== "" && normalizeAddress(challenge.sponsor) === normalizedUserAddress;
+  const oauthAppKey = getOAuthAppKey(appKey);
+  const oauthConnection = oauthAppKey ? authStatus?.[oauthAppKey] : undefined;
+  const appConnected = oauthConnection?.connected === true;
+  const connectedUsername = oauthConnection?.username;
+  const showOAuthConnectPrompt = isBeneficiary && challenge.active && !expired && oauthAppKey !== null && !appConnected;
+  const showOAuthConnectedState = isBeneficiary && challenge.active && oauthAppKey !== null && appConnected;
+  const showOAuthEndedWarning = isBeneficiary && challenge.active && expired && oauthAppKey !== null && !appConnected;
+  const showManualVerificationInput = isBeneficiary && challenge.active && expired && appKey === "DUOLINGO";
 
   return (
     <div className="page">
@@ -313,6 +374,69 @@ export function ChallengeDetail() {
           </div>
         )}
       </section>
+
+      {showOAuthConnectPrompt && (
+        <section className="surface surface-accent section-panel action-panel">
+          <div className="section-header">
+            <div>
+              <h2 className="section-title">Connect {appLabel}</h2>
+              <p className="section-note">
+                Link your {appLabel} account so your daily activity is tracked automatically.
+                Without this, the challenge cannot verify your progress.
+              </p>
+            </div>
+          </div>
+          <button className="button-primary button-full" onClick={handleConnectApp} disabled={connecting}>
+            {connecting ? "Connecting..." : `Connect ${appLabel}`}
+          </button>
+        </section>
+      )}
+
+      {showOAuthConnectedState && (
+        <section className="surface section-panel app-status-panel">
+          <div className="section-header">
+            <div>
+              <h2 className="section-title">{appLabel} connected</h2>
+              <p className="section-note app-status-copy">
+                {connectedUsername
+                  ? <>Logged in as <strong>@{connectedUsername}</strong>. Your daily {actionLabel.toLowerCase()} activity is being tracked automatically.</>
+                  : <>Your {appLabel} account is connected. Daily {actionLabel.toLowerCase()} activity is being tracked automatically.</>}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {showOAuthEndedWarning && (
+        <section className="surface section-panel app-status-panel">
+          <div className="section-header">
+            <div>
+              <h2 className="section-title">{appLabel} not connected</h2>
+              <p className="section-note app-status-copy app-status-warning">
+                Your {appLabel} account was not linked during this challenge. No progress was tracked.
+                Connect now if you believe this is an error, then contact the sponsor.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {showManualVerificationInput && (
+        <section className="surface section-panel action-panel">
+          <div className="section-header">
+            <div>
+              <h2 className="section-title">Verification input</h2>
+              <p className="section-note">Enter your Duolingo username to verify your progress.</p>
+            </div>
+          </div>
+          <input
+            className="form-input"
+            placeholder="Your Duolingo username"
+            value={duolingoInput}
+            onChange={(e) => setDuolingoInput(e.target.value)}
+          />
+        </section>
+      )}
 
       {challenge.active && !expired && (
         <section className="surface section-panel action-panel">
@@ -414,24 +538,6 @@ export function ChallengeDetail() {
           </div>
         </div>
       </section>
-
-      {appKey === "DUOLINGO" && expired && challenge.active && isBeneficiary && (
-        <section className="surface section-panel action-panel">
-          <div className="section-header">
-            <div>
-              <h2 className="section-title">Verification input</h2>
-              <p className="section-note">Required for the current Duolingo verification flow.</p>
-            </div>
-          </div>
-          <label className="form-label">Duolingo Username (for verification)</label>
-          <input
-            className="form-input"
-            placeholder="Your Duolingo username"
-            value={duolingoInput}
-            onChange={(e) => setDuolingoInput(e.target.value)}
-          />
-        </section>
-      )}
 
       {expired && challenge.active && isBeneficiary && (
         <section className="surface surface-accent section-panel action-panel">

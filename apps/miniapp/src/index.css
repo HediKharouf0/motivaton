@@ -770,6 +770,19 @@ a {
   gap: 0.9rem;
 }
 
+.app-status-panel {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.app-status-copy strong {
+  color: var(--page-ink);
+}
+
+.app-status-warning {
+  color: color-mix(in oklab, var(--page-warning) 74%, black);
+}
+
 .info-chip-row {
   display: flex;
   flex-wrap: wrap;

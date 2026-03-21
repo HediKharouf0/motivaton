@@ -41,7 +41,16 @@ export interface SignProofResponse {
   beneficiaryAddress: string;
 }
 
-/** Backend API — verification and signing only */
+export interface AuthConnection {
+  connected: boolean;
+  username?: string;
+}
+
+export interface AuthStatus {
+  github: AuthConnection;
+}
+
+/** Backend API — verification, signing, and auth */
 export const backendApi = {
   check(data: VerifyCheckRequest) {
     return request<VerificationResult>("/verify/check", {
@@ -59,5 +68,23 @@ export const backendApi = {
 
   getPublicKey() {
     return request<{ publicKey: string }>("/verify/public-key");
+  },
+
+  getAuthStatus(walletAddress: string) {
+    return request<AuthStatus>(`/auth/status?wallet=${encodeURIComponent(walletAddress)}`);
+  },
+
+  startGitHubOAuth(walletAddress: string) {
+    return request<{ url: string }>("/auth/github/start", {
+      method: "POST",
+      body: JSON.stringify({ walletAddress }),
+    });
+  },
+
+  disconnectGitHub(walletAddress: string) {
+    return request<{ ok: boolean }>("/auth/github/disconnect", {
+      method: "POST",
+      body: JSON.stringify({ walletAddress }),
+    });
   },
 };

@@ -102,8 +102,9 @@ verifyRouter.post("/sign-proof", async (req, res) => {
     app,
     action,
     count: challenge.totalCheckpoints,
+    challengeIdx,
     duolingoUsername,
-  });
+  } as any);
 
   // Earned checkpoints = min(currentCount, totalCheckpoints)
   const earnedCount = Math.min(result.currentCount, challenge.totalCheckpoints);
