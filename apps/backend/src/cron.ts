@@ -67,6 +67,10 @@ async function eventsProgressJob(lookbackMs: number) {
   const since = new Date(Date.now() - lookbackMs);
 
   console.log(`[cron] ${activeChallenges.length} active challenges, ${users.size} linked users, lookback=${Math.round(lookbackMs / 60_000)}min`);
+  console.log(`[cron] DB wallets: ${JSON.stringify(Object.keys(accounts).map((w) => ({ raw: w, normalized: normalizeAddress(w) })))}`);
+  for (const c of activeChallenges) {
+    console.log(`[cron] Challenge #${c.index} beneficiary: raw=${c.beneficiary} normalized=${normalizeAddress(c.beneficiary)}`);
+  }
 
   for (const c of activeChallenges) {
     const [app, action, ...rest] = c.challengeId.split(":");
