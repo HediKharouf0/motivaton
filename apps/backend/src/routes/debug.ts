@@ -46,6 +46,17 @@ debugRouter.get("/cron/trigger", async (_req, res) => {
   }
 });
 
+debugRouter.post("/claim-log", (req, res) => {
+  const { userAddress, contractAddress, challengeIdx, earnedCount, signature, boc } = req.body;
+  console.log(`[claim-debug] userAddress: ${userAddress}`);
+  console.log(`[claim-debug] contractAddress: ${contractAddress}`);
+  console.log(`[claim-debug] challengeIdx: ${challengeIdx}, earnedCount: ${earnedCount}`);
+  console.log(`[claim-debug] signature: ${signature}`);
+  console.log(`[claim-debug] boc: ${boc}`);
+  console.log(`[claim-debug] expected boc: te6cckEBAgEAUQABGPnkPrYAAAAAAAAAAQEAgMqTDoAQ3t0ltw0e8x77ajEbQBB0mjbiau3DKsZzZnVEt6jQrVMo48+gtdpPJdsGy28vflBZGjf19pqC1E7siwzvekO6`);
+  res.json({ ok: true });
+});
+
 debugRouter.get("/health", (_req, res) => {
   res.json({ status: "ok" });
 });

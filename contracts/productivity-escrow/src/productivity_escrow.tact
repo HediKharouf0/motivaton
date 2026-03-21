@@ -52,11 +52,14 @@ contract ProductivityEscrow with Deployable, Ownable {
     feeWalletA: Address;
     feeWalletB: Address;
 
-    init(owner: Address, verifierPublicKey: Int, feeWalletA: Address, feeWalletB: Address) {
+    nonce: Int as uint32 = 0;
+
+    init(owner: Address, verifierPublicKey: Int, feeWalletA: Address, feeWalletB: Address, nonce: Int) {
         self.owner = owner;
         self.verifierPublicKey = verifierPublicKey;
         self.feeWalletA = feeWalletA;
         self.feeWalletB = feeWalletB;
+        self.nonce = nonce;
     }
 
     // Sponsor creates and funds a challenge by sending TON with this message.

@@ -1,6 +1,6 @@
 # Tact compilation report
 Contract: ProductivityEscrow
-BoC Size: 2045 bytes
+BoC Size: 2074 bytes
 
 ## Structures (Structs and Messages)
 Total structures: 21
@@ -86,8 +86,8 @@ TL-B: `_ sponsor:address beneficiary:address challengeId:^string totalDeposit:co
 Signature: `ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}`
 
 ### ProductivityEscrow$Data
-TL-B: `_ owner:address verifierPublicKey:uint256 challengeCount:uint32 challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}> sponsorContributions:dict<int, int> feeWalletA:address feeWalletB:address = ProductivityEscrow`
-Signature: `ProductivityEscrow{owner:address,verifierPublicKey:uint256,challengeCount:uint32,challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}>,sponsorContributions:dict<int, int>,feeWalletA:address,feeWalletB:address}`
+TL-B: `_ owner:address verifierPublicKey:uint256 challengeCount:uint32 challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}> sponsorContributions:dict<int, int> feeWalletA:address feeWalletB:address nonce:uint32 = ProductivityEscrow`
+Signature: `ProductivityEscrow{owner:address,verifierPublicKey:uint256,challengeCount:uint32,challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}>,sponsorContributions:dict<int, int>,feeWalletA:address,feeWalletB:address,nonce:uint32}`
 
 ## Get methods
 Total get methods: 5

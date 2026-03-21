@@ -50,8 +50,9 @@ async function main() {
   const feeWalletA = Address.parse(FEE_WALLET_A);
   const feeWalletB = Address.parse(FEE_WALLET_B);
 
+  const nonce = BigInt(process.env.CONTRACT_NONCE || "1");
   const contract = client.open(
-    await ProductivityEscrow.fromInit(walletAddress, verifierPubKeyBigInt, feeWalletA, feeWalletB),
+    await ProductivityEscrow.fromInit(walletAddress, verifierPubKeyBigInt, feeWalletA, feeWalletB, nonce),
   );
 
   const contractAddress = contract.address;

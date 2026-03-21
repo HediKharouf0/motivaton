@@ -187,6 +187,21 @@ export function ChallengeDetail() {
       }
 
       const body = buildClaimAllBody(idx, proof.earnedCount, proof.signature);
+      const boc = body.toBoc().toString("base64");
+
+      // Log claim debug data to backend
+      fetch(`${import.meta.env.VITE_API_URL || "/api"}/debug/claim-log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userAddress,
+          contractAddress: CONTRACT_ADDRESS,
+          challengeIdx: idx,
+          earnedCount: proof.earnedCount,
+          signature: proof.signature,
+          boc,
+        }),
+      }).catch(() => {});
 
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
@@ -194,7 +209,7 @@ export function ChallengeDetail() {
           {
             address: CONTRACT_ADDRESS,
             amount: toNano("0.05").toString(),
-            payload: body.toBoc().toString("base64"),
+            payload: boc,
           },
         ],
       });
