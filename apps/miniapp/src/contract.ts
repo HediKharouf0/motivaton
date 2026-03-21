@@ -241,7 +241,8 @@ export async function getSponsorContribution(challengeIdx: number, sponsorAddres
 }
 
 /**
- * ClaimAll: opcode(32) | challengeIdx(uint32) | earnedCount(uint32) | signature(slice)
+ * ClaimAll: opcode(32) | challengeIdx(uint32) | earnedCount(uint32) | signature(ref cell)
+ * Tact serializes Slice fields as ref cells.
  */
 export function buildClaimAllBody(
   challengeIdx: number,
@@ -249,12 +250,13 @@ export function buildClaimAllBody(
   signatureBase64: string,
 ) {
   const sigBuf = Buffer.from(signatureBase64, "base64");
+  const sigCell = beginCell().storeBuffer(sigBuf).endCell();
 
   return beginCell()
     .storeUint(OP_CLAIM_ALL, 32)
     .storeUint(challengeIdx, 32)
     .storeUint(earnedCount, 32)
-    .storeBuffer(sigBuf)
+    .storeRef(sigCell)
     .endCell();
 }
 
