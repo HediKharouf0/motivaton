@@ -87,6 +87,12 @@ async function eventsProgressJob() {
       continue;
     }
 
+    const pushEvents = allEvents.filter((e) => e.type === "PushEvent");
+    console.log(`[cron] @${username}: ${allEvents.length} total events, ${pushEvents.length} PushEvents`);
+    for (const pe of pushEvents.slice(0, 5)) {
+      console.log(`[cron]   PushEvent created_at=${pe.created_at} commits=${pe.payload.commits?.length ?? 0}`);
+    }
+
     // Process each challenge for this user
     const userChallenges = activeChallenges.filter((c) => {
       const parts = c.challengeId.split(":");
