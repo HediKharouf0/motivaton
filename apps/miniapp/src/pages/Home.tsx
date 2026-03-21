@@ -81,7 +81,6 @@ export function Home() {
   const [challenges, setChallenges] = useState<IndexedChallenge[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
   const hasContractAddress = Boolean(import.meta.env.VITE_CONTRACT_ADDRESS);
 
   const normalizedUserAddress = userAddress ? normalizeAddress(userAddress) : "";
@@ -93,7 +92,6 @@ export function Home() {
     try {
       const nextChallenges = await getAllChallenges();
       setChallenges(nextChallenges);
-      setLastUpdatedAt(new Date());
     } catch (e: any) {
       console.error("Failed to load challenges:", e);
       setError(e.message);
@@ -127,7 +125,8 @@ export function Home() {
 
   return (
     <div className="page">
-      <header className="surface surface-accent hero-panel">
+      <header className="surface surface-accent hero-panel home-hero">
+        <div className="eyebrow">TON accountability</div>
         <div className="hero-row">
           <div>
             <h1 className="page-title">Make the promise cost something.</h1>
@@ -136,7 +135,7 @@ export function Home() {
             <TonConnectButton />
           </div>
         </div>
-        <div className="button-row hero-actions" style={{ marginTop: "1.1rem" }}>
+        <div className="button-row hero-actions">
           <p className="hero-copy">
             Create small accountability escrows on TON. Sponsors lock the stake, beneficiaries unlock it checkpoint by checkpoint.
           </p>
@@ -160,7 +159,7 @@ export function Home() {
         </div>
       )}
 
-      <section className="detail-stack">
+      <section className="surface section-panel list-section">
         <div className="section-header">
           <div>
             <div className="section-heading-row">
@@ -197,6 +196,7 @@ export function Home() {
             </p>
           </div>
         </div>
+        <div className="section-divider" />
         {!userAddress && (
           <div className="empty-state">
             <strong>Connect your wallet</strong>
@@ -211,7 +211,7 @@ export function Home() {
           </div>
         )}
         {userAddress && (
-          <div className="list-stack">
+          <div className="list-stack challenge-list">
             {myChallenges.map((c) => (
               <ChallengeCard key={c.index} challenge={c} />
             ))}
@@ -219,7 +219,7 @@ export function Home() {
         )}
       </section>
 
-      <section className="detail-stack">
+      <section className="surface section-panel list-section">
         <div className="section-header">
           <div>
             <div className="section-heading-row">
@@ -254,6 +254,7 @@ export function Home() {
             </p>
           </div>
         </div>
+        <div className="section-divider" />
         {loading && <div className="loading-card">Loading browse challenges...</div>}
         {!loading && browseChallenges.length === 0 && (
           <div className="empty-state">
@@ -262,7 +263,7 @@ export function Home() {
           </div>
         )}
         {!loading && browseChallenges.length > 0 && (
-          <div className="list-stack">
+          <div className="list-stack challenge-list">
             {browseChallenges.map((c) => (
               <ChallengeCard key={c.index} challenge={c} />
             ))}

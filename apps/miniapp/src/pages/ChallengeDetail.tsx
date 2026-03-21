@@ -30,6 +30,10 @@ function buildFallbackClaimedMap(challenge: OnChainChallenge): boolean[] {
   return Array.from({ length: challenge.totalCheckpoints }, (_, i) => i < challenge.claimedCount);
 }
 
+function formatWalletPreview(address: string) {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
 export function ChallengeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -351,7 +355,7 @@ export function ChallengeDetail() {
         Back to challenges
       </button>
 
-      <header className="surface surface-accent hero-panel detail-header">
+      <header className="surface surface-accent hero-panel detail-header detail-hero">
         <div className="eyebrow">On-chain challenge #{idx}</div>
         <div className="detail-title-row">
           <div>
@@ -493,7 +497,7 @@ export function ChallengeDetail() {
         </section>
       )}
 
-      <section className="surface section-panel">
+      <section className="surface section-panel checkpoint-section">
         <div className="section-header">
           <div>
             <h2 className="section-title">Checkpoint board</h2>
@@ -514,10 +518,10 @@ export function ChallengeDetail() {
       </section>
 
       <section className="identity-grid">
-        <div className="surface section-panel">
-          <h2 className="section-title" style={{ marginBottom: "0.35rem" }}>Participants</h2>
+        <div className="surface section-panel detail-side-panel">
+          <h2 className="section-title detail-side-title">Participants</h2>
           {hasAdditionalBackers && (
-            <p className="section-note" style={{ marginBottom: "0.9rem" }}>
+            <p className="section-note detail-side-note">
               This challenge has additional backers beyond the original creator.
             </p>
           )}
@@ -525,7 +529,7 @@ export function ChallengeDetail() {
             <div className="identity-row">
               <div>
                 <div className="identity-role">Creator</div>
-                <div className="identity-address">{challenge.sponsor.slice(0, 6)}...{challenge.sponsor.slice(-4)}</div>
+                <div className="identity-address">{formatWalletPreview(challenge.sponsor)}</div>
                 {creatorContribution !== null && (
                   <div className="identity-note">
                     Contributed {(Number(creatorContribution) / 1e9).toFixed(2)} TON
@@ -537,14 +541,14 @@ export function ChallengeDetail() {
             <div className="identity-row">
               <div>
                 <div className="identity-role">Beneficiary</div>
-                <div className="identity-address">{challenge.beneficiary.slice(0, 6)}...{challenge.beneficiary.slice(-4)}</div>
+                <div className="identity-address">{formatWalletPreview(challenge.beneficiary)}</div>
               </div>
               {isBeneficiary && <span className="inline-note">You</span>}
             </div>
           </div>
         </div>
-        <div className="surface section-panel">
-          <h2 className="section-title" style={{ marginBottom: "0.9rem" }}>Action context</h2>
+        <div className="surface section-panel detail-side-panel">
+          <h2 className="section-title detail-side-title">Action context</h2>
           <div className="summary-list">
             <div className="summary-row">
               <span className="summary-label">App</span>

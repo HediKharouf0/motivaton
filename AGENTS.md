@@ -273,3 +273,24 @@ Key files:
 Follow-up gaps:
 - Additional OAuth apps will still need matching backend auth routes and a new case in `handleConnectApp`.
 - The beneficiary claim flow still inherits the broader verification-model correctness risks already called out in prior review comments.
+
+### 2026-03-21 - Miniapp Visual Redesign Without Flow Changes
+
+Summary:
+- Rebuilt the miniapp presentation layer with a much stronger visual direction while keeping the same challenge flows, actions, and data surfaces intact.
+- Reworked the home, create, and challenge detail screens around a new editorial-style palette, sharper hierarchy, dark accent hero panels, more distinctive cards, and a stronger desktop/mobile composition.
+- Kept the task strictly UI-scoped: no new user capabilities were introduced and no existing product functionality was removed.
+
+Why it matters now:
+- The miniapp now reads as an intentional product instead of a lightly styled prototype, which materially improves first impression and usability without forcing backend or contract changes.
+- Future contributors can iterate on a more opinionated and cohesive baseline rather than layering more tweaks onto the older neutral visual system.
+
+Key files:
+- `apps/miniapp/src/index.css`
+- `apps/miniapp/src/pages/Home.tsx`
+- `apps/miniapp/src/pages/CreateChallenge.tsx`
+- `apps/miniapp/src/pages/ChallengeDetail.tsx`
+- `AGENTS.md`
+
+Follow-up gaps:
+- The redesign passes typecheck and build, but it still needs a real Telegram-device review to tune contrast, density, and TonConnect appearance against the new visual system.

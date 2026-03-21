@@ -17,6 +17,10 @@ import {
   toNano,
 } from "../contract";
 
+function formatWalletPreview(address: string) {
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
 export function CreateChallenge() {
   const navigate = useNavigate();
   const [tonConnectUI] = useTonConnectUI();
@@ -148,7 +152,7 @@ export function CreateChallenge() {
         Back to challenges
       </button>
 
-      <header className="surface surface-accent hero-panel">
+      <header className="surface surface-accent hero-panel create-hero">
         <div className="eyebrow">New escrow</div>
         <h1 className="page-title">Define the rule. Lock the stake.</h1>
         <p className="page-intro">
@@ -156,8 +160,8 @@ export function CreateChallenge() {
         </p>
       </header>
 
-      <form onSubmit={handleSubmit} className="form-stack">
-        <section className="surface section-panel">
+      <form onSubmit={handleSubmit} className="form-stack challenge-create-form">
+        <section className="surface section-panel form-section form-section-rule">
           <div className="section-header">
             <div>
               <h2 className="section-title">Challenge rule</h2>
@@ -197,7 +201,7 @@ export function CreateChallenge() {
             </div>
           </div>
 
-          <div className="form-group" style={{ marginTop: "0.9rem" }}>
+          <div className="form-group form-group-spaced">
             <label className="form-label">Times to complete</label>
             <input
               className="form-input"
@@ -210,7 +214,7 @@ export function CreateChallenge() {
           </div>
         </section>
 
-        <section className="surface section-panel">
+        <section className="surface section-panel form-section form-section-stake">
           <div className="section-header">
             <div>
               <h2 className="section-title">Stake and participants</h2>
@@ -247,7 +251,7 @@ export function CreateChallenge() {
             </div>
           </div>
 
-          <div className="form-group" style={{ marginTop: "0.9rem" }}>
+          <div className="form-group form-group-spaced">
             <label className="form-label">Who gets paid</label>
             <input
               className="form-input"
@@ -259,7 +263,7 @@ export function CreateChallenge() {
             <p className="field-hint">Leave empty to pay yourself. Otherwise enter the beneficiary TON address.</p>
           </div>
 
-          <label className="toggle-row" style={{ marginTop: "0.9rem" }}>
+          <label className="toggle-row form-group-spaced">
             <span className="toggle-copy">
               <span className="toggle-title">Unlisted</span>
               <span className="toggle-note">Hide this challenge from public browse lists. It will still be accessible via direct link.</span>
@@ -275,7 +279,7 @@ export function CreateChallenge() {
           </label>
 
           {app === App.Duolingo && (
-            <div className="form-group" style={{ marginTop: "0.9rem" }}>
+            <div className="form-group form-group-spaced">
               <label className="form-label">Duolingo username</label>
               <input
                 className="form-input"
@@ -289,7 +293,7 @@ export function CreateChallenge() {
           )}
         </section>
 
-        <aside className="surface surface-accent summary-panel">
+        <aside className="surface surface-accent summary-panel challenge-summary-panel">
           <div className="section-header">
             <div>
               <h2 className="section-title">Challenge summary</h2>
@@ -325,24 +329,24 @@ export function CreateChallenge() {
             </div>
             <div className="summary-row">
               <span className="summary-label">Sponsor</span>
-              <span className="summary-value">
-                {userAddress ? `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}` : "Not connected"}
+              <span className="summary-value address-value">
+                {userAddress ? formatWalletPreview(userAddress) : "Not connected"}
               </span>
             </div>
             <div className="summary-row">
               <span className="summary-label">Beneficiary</span>
-              <span className="summary-value">
+              <span className="summary-value address-value">
                 {whoIsPaid
-                  ? `${whoIsPaid.slice(0, 6)}...${whoIsPaid.slice(-4)}`
+                  ? formatWalletPreview(whoIsPaid)
                   : userAddress
-                    ? `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`
+                    ? formatWalletPreview(userAddress)
                     : "Not connected"}
               </span>
             </div>
           </div>
         </aside>
 
-        <div className="button-row">
+        <div className="button-row form-actions">
           <button type="button" className="button-secondary" onClick={() => navigate("/")}>
             Back
           </button>
@@ -350,7 +354,11 @@ export function CreateChallenge() {
             {!userAddress ? "Connect wallet" : submitting ? "Creating..." : "Create challenge"}
           </button>
         </div>
-        {submissionStatus && <p className="field-hint">{submissionStatus}</p>}
+        {submissionStatus && (
+          <div className="loading-card status-banner" role="status" aria-live="polite">
+            {submissionStatus}
+          </div>
+        )}
       </form>
     </div>
   );
