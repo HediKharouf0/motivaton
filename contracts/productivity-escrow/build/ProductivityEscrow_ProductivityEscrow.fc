@@ -718,7 +718,6 @@ _ %owner() method_id(83229) {
         var ($cd'sponsor, $cd'beneficiary, $cd'challengeId, $cd'totalDeposit, $cd'totalCheckpoints, $cd'amountPerCheckpoint, $cd'claimedCount, $cd'endDate, $cd'createdAt, $cd'active, $cd'unlisted) = $ChallengeData$_not_null($challenge);
         throw_unless(8433, $cd'active);
         throw_unless(55597, ( equal_slices_bits($ctx'sender, $cd'beneficiary) ));
-        throw_unless(12222, ($global_now() > $cd'endDate));
         throw_unless(43091, ($msg'checkpointIndex < $cd'totalCheckpoints));
         int $claimKey = $Cell$_fun_hash($Builder$_fun_endCell(store_uint(store_uint($global_beginCell(), $msg'challengeIdx, 32), $msg'checkpointIndex, 32)));
         throw_unless(57829, null?(__tact_dict_get_int_int($self'claimedCheckpoints, 257, $claimKey, 1)));

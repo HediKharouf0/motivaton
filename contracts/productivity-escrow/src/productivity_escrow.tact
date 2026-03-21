@@ -156,7 +156,6 @@ contract ProductivityEscrow with Deployable, Ownable {
 
         require(cd.active, "Challenge is not active");
         require(ctx.sender == cd.beneficiary, "Only beneficiary can claim");
-        require(now() > cd.endDate, "Challenge has not ended yet");
         require(msg.checkpointIndex < cd.totalCheckpoints, "Invalid checkpoint index");
 
         // Collision-free claim key

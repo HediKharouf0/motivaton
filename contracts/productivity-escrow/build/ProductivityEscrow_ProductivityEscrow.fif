@@ -646,11 +646,6 @@ PROGRAM{
       SDEQ
       s1 s11 XCHG
       THROWANYIFNOT
-      12222 PUSHINT
-          NOW
-      s3 PUSH
-      GREATER
-      THROWANYIFNOT
       43091 PUSHINT
       s12 s5 PUSH2
       LESS

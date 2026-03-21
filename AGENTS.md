@@ -274,6 +274,25 @@ Follow-up gaps:
 - Additional OAuth apps will still need matching backend auth routes and a new case in `handleConnectApp`.
 - The beneficiary claim flow still inherits the broader verification-model correctness risks already called out in prior review comments.
 
+### 2026-03-21 - Early Full-Completion Claims Enabled
+
+Summary:
+- Removed the hard deadline gate from on-chain checkpoint claims so a fully completed challenge can be redeemed before its end date.
+- Updated the backend proof-signing route to allow early signatures only when all checkpoints are already completed, while keeping partial in-progress claims blocked until expiry.
+- Adjusted the challenge detail screen to expose the claim section as soon as the backend reports full completion instead of waiting strictly for the deadline.
+
+Why it matters now:
+- Beneficiaries no longer have to wait for the calendar deadline when they finish the entire challenge early.
+- The frontend, backend, and contract now agree on the same early-redemption rule instead of the UI hiding a flow the product wants to permit.
+
+Key files:
+- `contracts/productivity-escrow/src/productivity_escrow.tact`
+- `apps/backend/src/routes/verify.ts`
+- `apps/miniapp/src/pages/ChallengeDetail.tsx`
+
+Follow-up gaps:
+- Early redemption currently depends on backend progress reaching the full checkpoint target, so manual-input integrations still need a clearer early-completion UX if they are expected to support the same behavior.
+
 ### 2026-03-21 - Miniapp Visual Redesign Without Flow Changes
 
 Summary:

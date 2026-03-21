@@ -35,8 +35,9 @@ verifyRouter.post("/check", async (req, res) => {
  * Reads the challenge from the contract to get the real app/action/count,
  * verifies progress, then returns signed proofs for all earned checkpoints.
  *
- * Claims are only valid after the challenge has ended. The number of checkpoints
- * earned equals the verified completion count (capped at totalCheckpoints).
+ * Claims are valid after the challenge ends, or earlier if the beneficiary has
+ * already completed every checkpoint. The number of checkpoints earned equals
+ * the verified completion count (capped at totalCheckpoints).
  *
  * Body: {
  *   challengeIdx,        // on-chain challenge index
@@ -78,11 +79,6 @@ verifyRouter.post("/sign-proof", async (req, res) => {
     return;
   }
 
-  if (Date.now() / 1000 <= challenge.endDate) {
-    res.status(400).json({ error: "Challenge has not ended yet. Claims are only available after the deadline." });
-    return;
-  }
-
   // Parse challengeId to get app/action/count
   const parts = challenge.challengeId.split(":");
   if (parts.length < 3) {
@@ -108,6 +104,20 @@ verifyRouter.post("/sign-proof", async (req, res) => {
 
   // Earned checkpoints = min(currentCount, totalCheckpoints)
   const earnedCount = Math.min(result.currentCount, challenge.totalCheckpoints);
+  const expired = Date.now() / 1000 > challenge.endDate;
+
+  if (!expired && earnedCount < challenge.totalCheckpoints) {
+    res.status(400).json({
+      error: "Challenge is still in progress. Claims unlock after the deadline or once all checkpoints are completed.",
+      details: {
+        ...result,
+        earnedCount,
+        alreadyClaimed: challenge.claimedCount,
+      },
+    });
+    return;
+  }
+
   // Only sign for checkpoints not yet claimed
   const unclaimedEarned: number[] = [];
   for (let i = challenge.claimedCount; i < earnedCount; i++) {

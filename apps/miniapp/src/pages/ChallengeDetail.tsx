@@ -331,12 +331,15 @@ export function ChallengeDetail() {
   const appLabel = APP_LABELS[appKey as keyof typeof APP_LABELS] ?? appKey;
   const actionLabel = formatActionLabel(action);
   const expired = Date.now() / 1000 > challenge.endDate;
+  const fullyCompleted = backendProgress >= challenge.totalCheckpoints;
   const progressPct = Math.min(100, Math.round((backendProgress / challenge.totalCheckpoints) * 100));
   const status = !challenge.active
     ? backendProgress >= challenge.totalCheckpoints
       ? "completed"
       : "closed"
-    : expired
+    : fullyCompleted
+      ? "completed"
+      : expired
       ? "expired"
       : "active";
   const nextCheckpoint = claimedMap.findIndex((claimed) => !claimed);
@@ -352,7 +355,8 @@ export function ChallengeDetail() {
   const showOAuthConnectPrompt = isBeneficiary && challenge.active && !expired && oauthAppKey !== null && !appConnected;
   const showOAuthConnectedState = isBeneficiary && challenge.active && oauthAppKey !== null && appConnected;
   const showOAuthEndedWarning = isBeneficiary && challenge.active && expired && oauthAppKey !== null && !appConnected;
-  const showManualVerificationInput = isBeneficiary && challenge.active && expired && appKey === "DUOLINGO";
+  const canClaimRewards = isBeneficiary && challenge.active && (expired || fullyCompleted);
+  const showManualVerificationInput = canClaimRewards && appKey === "DUOLINGO";
 
   return (
     <div className="page">
@@ -575,13 +579,15 @@ export function ChallengeDetail() {
         </div>
       </section>
 
-      {expired && challenge.active && isBeneficiary && (
+      {canClaimRewards && (
         <section className="surface surface-accent section-panel action-panel">
           <div className="section-header">
             <div>
               <h2 className="section-title">Claim your rewards</h2>
               <p className="section-note">
-                The challenge has ended. Verify your progress and claim all earned checkpoints in one transaction.
+                {expired
+                  ? "The challenge has ended. Verify your progress and claim all earned checkpoints in one transaction."
+                  : "All checkpoints are complete. You can verify and claim the full reward now without waiting for the deadline."}
               </p>
             </div>
           </div>
