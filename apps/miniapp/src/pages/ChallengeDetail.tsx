@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTonConnectUI, useTonAddress } from "@tonconnect/ui-react";
 import {
   getChallenge,
@@ -23,15 +23,32 @@ function getOAuthAppKey(appKey: string): (typeof OAUTH_APPS)[number] | null {
   return OAUTH_APPS.includes(authKey) ? authKey : null;
 }
 
+type IndexedChallenge = OnChainChallenge & { index: number };
+type ChallengeLocationState = { challenge?: IndexedChallenge };
+
+function buildFallbackClaimedMap(challenge: OnChainChallenge): boolean[] {
+  return Array.from({ length: challenge.totalCheckpoints }, (_, i) => i < challenge.claimedCount);
+}
+
 export function ChallengeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [tonConnectUI] = useTonConnectUI();
   const userAddress = useTonAddress();
 
-  const [challenge, setChallenge] = useState<OnChainChallenge | null>(null);
-  const [claimedMap, setClaimedMap] = useState<boolean[]>([]);
-  const [loading, setLoading] = useState(true);
+  const idx = parseInt(id || "0", 10);
+  const locationState = location.state as ChallengeLocationState | null;
+  const prefetchedChallenge =
+    locationState?.challenge && locationState.challenge.index === idx
+      ? locationState.challenge
+      : null;
+
+  const [challenge, setChallenge] = useState<OnChainChallenge | null>(prefetchedChallenge);
+  const [claimedMap, setClaimedMap] = useState<boolean[]>(
+    prefetchedChallenge ? buildFallbackClaimedMap(prefetchedChallenge) : [],
+  );
+  const [loading, setLoading] = useState(prefetchedChallenge === null);
   const [error, setError] = useState("");
   const [verification, setVerification] = useState<VerificationResult | null>(null);
   const [verifying, setVerifying] = useState(false);
@@ -46,22 +63,44 @@ export function ChallengeDetail() {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [connecting, setConnecting] = useState(false);
 
-  const idx = parseInt(id || "0", 10);
-
   useEffect(() => {
-    loadChallenge();
-  }, [idx, userAddress]);
+    setLoading(prefetchedChallenge === null);
+    setChallenge(prefetchedChallenge);
+    setClaimedMap(prefetchedChallenge ? buildFallbackClaimedMap(prefetchedChallenge) : []);
+    setUserContribution(null);
+    setCreatorContribution(null);
+    setVerification(null);
+    setAuthStatus(null);
+    setError("");
+    void loadChallenge({
+      seedChallenge: prefetchedChallenge,
+      forceRefresh: prefetchedChallenge === null,
+      showBlockingLoader: prefetchedChallenge === null,
+    });
+  }, [idx, userAddress, prefetchedChallenge]);
 
-  async function loadChallenge() {
-    setLoading(true);
+  async function loadChallenge(options?: {
+    forceRefresh?: boolean;
+    seedChallenge?: OnChainChallenge | null;
+    showBlockingLoader?: boolean;
+  }) {
+    const showBlockingLoader = options?.showBlockingLoader ?? challenge === null;
+    if (showBlockingLoader) {
+      setLoading(true);
+    }
     setError("");
     try {
-      const c = await getChallenge(idx);
+      let c = options?.seedChallenge ?? challenge;
+      if (options?.forceRefresh || !c) {
+        c = await getChallenge(idx);
+      }
+
       setChallenge(c);
       if (!c) {
         setClaimedMap([]);
         setUserContribution(null);
         setCreatorContribution(null);
+        setAuthStatus(null);
         return;
       }
 
@@ -93,7 +132,9 @@ export function ChallengeDetail() {
     } catch (e: any) {
       setError(e.message);
     } finally {
-      setLoading(false);
+      if (showBlockingLoader) {
+        setLoading(false);
+      }
     }
   }
 
@@ -148,7 +189,7 @@ export function ChallengeDetail() {
         messages,
       });
 
-      await loadChallenge();
+      await loadChallenge({ forceRefresh: true });
     } catch (e: any) {
       if (!e.message?.includes("Cancelled") && !e.message?.includes("canceled")) {
         alert(e.message || "Claim failed.");
@@ -173,7 +214,7 @@ export function ChallengeDetail() {
           },
         ],
       });
-      await loadChallenge();
+      await loadChallenge({ forceRefresh: true });
     } catch (e: any) {
       if (!e.message?.includes("Cancelled") && !e.message?.includes("canceled")) {
         alert(e.message || "Refund failed.");
@@ -235,7 +276,7 @@ export function ChallengeDetail() {
       });
 
       setFundAmount("");
-      await loadChallenge();
+      await loadChallenge({ forceRefresh: true });
     } catch (e: any) {
       if (!e.message?.includes("Cancelled") && !e.message?.includes("canceled")) {
         alert(e.message || "Funding failed.");

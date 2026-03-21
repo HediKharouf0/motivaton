@@ -125,7 +125,9 @@ export function CreateChallenge() {
         unlisted,
       });
 
-      navigate(`/challenge/${indexedChallenge.index}`);
+      navigate(`/challenge/${indexedChallenge.index}`, {
+        state: { challenge: indexedChallenge },
+      });
     } catch (err: any) {
       if (err.message?.includes("Cancelled") || err.message?.includes("canceled")) {
         // User cancelled — do nothing
