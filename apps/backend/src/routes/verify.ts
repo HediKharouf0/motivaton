@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { Address } from "@ton/core";
 import { getVerifier } from "../verifiers/index.js";
-import { signCheckpointProof, getVerifierPublicKey } from "../signer.js";
+import { signClaimAllProof, getVerifierPublicKey } from "../signer.js";
 import { getChallenge } from "../chain.js";
 
 export const verifyRouter = Router();
@@ -32,12 +32,8 @@ verifyRouter.post("/check", async (req, res) => {
 
 /**
  * POST /api/verify/sign-proof
- * Reads the challenge from the contract to get the real app/action/count,
- * verifies progress, then returns signed proofs for all earned checkpoints.
- *
- * Claims are valid after the challenge ends, or earlier if the beneficiary has
- * already completed every checkpoint. The number of checkpoints earned equals
- * the verified completion count (capped at totalCheckpoints).
+ * Reads the challenge from the contract, verifies progress, then returns
+ * a single signature for ClaimAll covering all earned checkpoints.
  *
  * Body: {
  *   challengeIdx,        // on-chain challenge index
@@ -79,13 +75,13 @@ verifyRouter.post("/sign-proof", async (req, res) => {
     return;
   }
 
-  // Parse challengeId to get app/action/count
+  // Parse challengeId to get app/action
   const parts = challenge.challengeId.split(":");
   if (parts.length < 3) {
     res.status(400).json({ error: `Invalid challengeId format: ${challenge.challengeId}` });
     return;
   }
-  const [app, action] = parts;
+  const [app] = parts;
 
   const verifier = getVerifier(app);
   if (!verifier) {
@@ -96,7 +92,7 @@ verifyRouter.post("/sign-proof", async (req, res) => {
   // Verify with the full checkpoint count to determine how many were earned
   const result = await verifier.verify({
     app,
-    action,
+    action: parts[1],
     count: challenge.totalCheckpoints,
     challengeIdx,
     duolingoUsername,
@@ -118,13 +114,7 @@ verifyRouter.post("/sign-proof", async (req, res) => {
     return;
   }
 
-  // Only sign for checkpoints not yet claimed
-  const unclaimedEarned: number[] = [];
-  for (let i = challenge.claimedCount; i < earnedCount; i++) {
-    unclaimedEarned.push(i);
-  }
-
-  if (unclaimedEarned.length === 0) {
+  if (earnedCount <= challenge.claimedCount) {
     res.status(403).json({
       error: "No new checkpoints to claim.",
       details: {
@@ -137,16 +127,14 @@ verifyRouter.post("/sign-proof", async (req, res) => {
     return;
   }
 
-  const signatures = unclaimedEarned.map((cpIdx) => ({
-    checkpointIndex: cpIdx,
-    signature: signCheckpointProof(challengeIdx, cpIdx, beneficiary).toString("base64"),
-  }));
+  // Sign a single proof for ClaimAll: (challengeIdx, earnedCount, beneficiary)
+  const signature = signClaimAllProof(challengeIdx, earnedCount, beneficiary).toString("base64");
 
   res.json({
     verified: true,
     earnedCount,
     alreadyClaimed: challenge.claimedCount,
-    newCheckpoints: signatures,
+    signature,
     challengeIdx,
     beneficiaryAddress,
   });

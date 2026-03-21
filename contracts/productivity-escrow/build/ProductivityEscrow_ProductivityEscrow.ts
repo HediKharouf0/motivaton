@@ -980,61 +980,61 @@ export function dictValueParserAddFunds(): DictionaryValue<AddFunds> {
     }
 }
 
-export type ClaimCheckpoint = {
-    $$type: 'ClaimCheckpoint';
+export type ClaimAll = {
+    $$type: 'ClaimAll';
     challengeIdx: bigint;
-    checkpointIndex: bigint;
+    earnedCount: bigint;
     signature: Slice;
 }
 
-export function storeClaimCheckpoint(src: ClaimCheckpoint) {
+export function storeClaimAll(src: ClaimAll) {
     return (builder: Builder) => {
         const b_0 = builder;
-        b_0.storeUint(2069244991, 32);
+        b_0.storeUint(4192066358, 32);
         b_0.storeUint(src.challengeIdx, 32);
-        b_0.storeUint(src.checkpointIndex, 32);
+        b_0.storeUint(src.earnedCount, 32);
         b_0.storeRef(src.signature.asCell());
     };
 }
 
-export function loadClaimCheckpoint(slice: Slice) {
+export function loadClaimAll(slice: Slice) {
     const sc_0 = slice;
-    if (sc_0.loadUint(32) !== 2069244991) { throw Error('Invalid prefix'); }
+    if (sc_0.loadUint(32) !== 4192066358) { throw Error('Invalid prefix'); }
     const _challengeIdx = sc_0.loadUintBig(32);
-    const _checkpointIndex = sc_0.loadUintBig(32);
+    const _earnedCount = sc_0.loadUintBig(32);
     const _signature = sc_0.loadRef().asSlice();
-    return { $$type: 'ClaimCheckpoint' as const, challengeIdx: _challengeIdx, checkpointIndex: _checkpointIndex, signature: _signature };
+    return { $$type: 'ClaimAll' as const, challengeIdx: _challengeIdx, earnedCount: _earnedCount, signature: _signature };
 }
 
-export function loadTupleClaimCheckpoint(source: TupleReader) {
+export function loadTupleClaimAll(source: TupleReader) {
     const _challengeIdx = source.readBigNumber();
-    const _checkpointIndex = source.readBigNumber();
+    const _earnedCount = source.readBigNumber();
     const _signature = source.readCell().asSlice();
-    return { $$type: 'ClaimCheckpoint' as const, challengeIdx: _challengeIdx, checkpointIndex: _checkpointIndex, signature: _signature };
+    return { $$type: 'ClaimAll' as const, challengeIdx: _challengeIdx, earnedCount: _earnedCount, signature: _signature };
 }
 
-export function loadGetterTupleClaimCheckpoint(source: TupleReader) {
+export function loadGetterTupleClaimAll(source: TupleReader) {
     const _challengeIdx = source.readBigNumber();
-    const _checkpointIndex = source.readBigNumber();
+    const _earnedCount = source.readBigNumber();
     const _signature = source.readCell().asSlice();
-    return { $$type: 'ClaimCheckpoint' as const, challengeIdx: _challengeIdx, checkpointIndex: _checkpointIndex, signature: _signature };
+    return { $$type: 'ClaimAll' as const, challengeIdx: _challengeIdx, earnedCount: _earnedCount, signature: _signature };
 }
 
-export function storeTupleClaimCheckpoint(source: ClaimCheckpoint) {
+export function storeTupleClaimAll(source: ClaimAll) {
     const builder = new TupleBuilder();
     builder.writeNumber(source.challengeIdx);
-    builder.writeNumber(source.checkpointIndex);
+    builder.writeNumber(source.earnedCount);
     builder.writeSlice(source.signature.asCell());
     return builder.build();
 }
 
-export function dictValueParserClaimCheckpoint(): DictionaryValue<ClaimCheckpoint> {
+export function dictValueParserClaimAll(): DictionaryValue<ClaimAll> {
     return {
         serialize: (src, builder) => {
-            builder.storeRef(beginCell().store(storeClaimCheckpoint(src)).endCell());
+            builder.storeRef(beginCell().store(storeClaimAll(src)).endCell());
         },
         parse: (src) => {
-            return loadClaimCheckpoint(src.loadRef().beginParse());
+            return loadClaimAll(src.loadRef().beginParse());
         }
     }
 }
@@ -1197,7 +1197,6 @@ export type ProductivityEscrow$Data = {
     verifierPublicKey: bigint;
     challengeCount: bigint;
     challenges: Dictionary<bigint, ChallengeData>;
-    claimedCheckpoints: Dictionary<bigint, boolean>;
     sponsorContributions: Dictionary<bigint, bigint>;
     feeWalletA: Address;
     feeWalletB: Address;
@@ -1210,10 +1209,9 @@ export function storeProductivityEscrow$Data(src: ProductivityEscrow$Data) {
         b_0.storeUint(src.verifierPublicKey, 256);
         b_0.storeUint(src.challengeCount, 32);
         b_0.storeDict(src.challenges, Dictionary.Keys.BigInt(257), dictValueParserChallengeData());
-        b_0.storeDict(src.claimedCheckpoints, Dictionary.Keys.BigInt(257), Dictionary.Values.Bool());
+        b_0.storeDict(src.sponsorContributions, Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257));
+        b_0.storeAddress(src.feeWalletA);
         const b_1 = new Builder();
-        b_1.storeDict(src.sponsorContributions, Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257));
-        b_1.storeAddress(src.feeWalletA);
         b_1.storeAddress(src.feeWalletB);
         b_0.storeRef(b_1.endCell());
     };
@@ -1225,12 +1223,11 @@ export function loadProductivityEscrow$Data(slice: Slice) {
     const _verifierPublicKey = sc_0.loadUintBig(256);
     const _challengeCount = sc_0.loadUintBig(32);
     const _challenges = Dictionary.load(Dictionary.Keys.BigInt(257), dictValueParserChallengeData(), sc_0);
-    const _claimedCheckpoints = Dictionary.load(Dictionary.Keys.BigInt(257), Dictionary.Values.Bool(), sc_0);
+    const _sponsorContributions = Dictionary.load(Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257), sc_0);
+    const _feeWalletA = sc_0.loadAddress();
     const sc_1 = sc_0.loadRef().beginParse();
-    const _sponsorContributions = Dictionary.load(Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257), sc_1);
-    const _feeWalletA = sc_1.loadAddress();
     const _feeWalletB = sc_1.loadAddress();
-    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions, feeWalletA: _feeWalletA, feeWalletB: _feeWalletB };
+    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, sponsorContributions: _sponsorContributions, feeWalletA: _feeWalletA, feeWalletB: _feeWalletB };
 }
 
 export function loadTupleProductivityEscrow$Data(source: TupleReader) {
@@ -1238,11 +1235,10 @@ export function loadTupleProductivityEscrow$Data(source: TupleReader) {
     const _verifierPublicKey = source.readBigNumber();
     const _challengeCount = source.readBigNumber();
     const _challenges = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), dictValueParserChallengeData(), source.readCellOpt());
-    const _claimedCheckpoints = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.Bool(), source.readCellOpt());
     const _sponsorContributions = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257), source.readCellOpt());
     const _feeWalletA = source.readAddress();
     const _feeWalletB = source.readAddress();
-    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions, feeWalletA: _feeWalletA, feeWalletB: _feeWalletB };
+    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, sponsorContributions: _sponsorContributions, feeWalletA: _feeWalletA, feeWalletB: _feeWalletB };
 }
 
 export function loadGetterTupleProductivityEscrow$Data(source: TupleReader) {
@@ -1250,11 +1246,10 @@ export function loadGetterTupleProductivityEscrow$Data(source: TupleReader) {
     const _verifierPublicKey = source.readBigNumber();
     const _challengeCount = source.readBigNumber();
     const _challenges = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), dictValueParserChallengeData(), source.readCellOpt());
-    const _claimedCheckpoints = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.Bool(), source.readCellOpt());
     const _sponsorContributions = Dictionary.loadDirect(Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257), source.readCellOpt());
     const _feeWalletA = source.readAddress();
     const _feeWalletB = source.readAddress();
-    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, claimedCheckpoints: _claimedCheckpoints, sponsorContributions: _sponsorContributions, feeWalletA: _feeWalletA, feeWalletB: _feeWalletB };
+    return { $$type: 'ProductivityEscrow$Data' as const, owner: _owner, verifierPublicKey: _verifierPublicKey, challengeCount: _challengeCount, challenges: _challenges, sponsorContributions: _sponsorContributions, feeWalletA: _feeWalletA, feeWalletB: _feeWalletB };
 }
 
 export function storeTupleProductivityEscrow$Data(source: ProductivityEscrow$Data) {
@@ -1263,7 +1258,6 @@ export function storeTupleProductivityEscrow$Data(source: ProductivityEscrow$Dat
     builder.writeNumber(source.verifierPublicKey);
     builder.writeNumber(source.challengeCount);
     builder.writeCell(source.challenges.size > 0 ? beginCell().storeDictDirect(source.challenges, Dictionary.Keys.BigInt(257), dictValueParserChallengeData()).endCell() : null);
-    builder.writeCell(source.claimedCheckpoints.size > 0 ? beginCell().storeDictDirect(source.claimedCheckpoints, Dictionary.Keys.BigInt(257), Dictionary.Values.Bool()).endCell() : null);
     builder.writeCell(source.sponsorContributions.size > 0 ? beginCell().storeDictDirect(source.sponsorContributions, Dictionary.Keys.BigInt(257), Dictionary.Values.BigInt(257)).endCell() : null);
     builder.writeAddress(source.feeWalletA);
     builder.writeAddress(source.feeWalletB);
@@ -1302,7 +1296,7 @@ function initProductivityEscrow_init_args(src: ProductivityEscrow_init_args) {
 }
 
 async function ProductivityEscrow_init(owner: Address, verifierPublicKey: bigint, feeWalletA: Address, feeWalletB: Address) {
-    const __code = Cell.fromHex('b5ee9c72410228010008da000228ff008e88f4a413f4bcf2c80bed5320e303ed43d90112020271020d02012003050199bbbe4ed44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e2db3c6c81804000225020120060b020162070901c8a837ed44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e25507db3c6c81206e92306d99206ef2d0806f2b6f0be2206e92306dde08013a810101260259f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be21f0198a91ded44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e2db3c6c810a000227019db7205da89a1a400031c3df481a7ffa63fe809a803a1e809e809f481f480602090208e208c208ad8311c3bf481020203ae01f481a803a1f4806028866009a2aa04e004dadab4da05c4aa2fb678d90300c0040c812cb1fcb1fc9f9008101012502714133f40c6fa19401d70030925b6de26eb30201200e100199b8bf5ed44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e2db3c6c8180f000226019db8790ed44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e25517db3c6c818110058c812cb1f01cf16c9f900810101530450334133f40c6fa19401d70030925b6de2206eb395206ef2d080e0307002f83001d072d721d200d200fa4021103450666f04f86102f862ed44d0d200018e1efa40d3ffd31ff404d401d0f404f404fa40fa403010481047104610456c188e1dfa40810101d700fa40d401d0fa403014433004d1550270026d6d5a6d02e209925f09e007d70d1ff2e082218210c2860504bae30221821048402acdba131502fc31fa40d401d001d31fd33fd20030f8416f243032816cf022820afaf080bcf2f4816f8225c200f2f4f8235240bcf2e65301820afaf080a15304a9048108cd21c200f2f481010170f8237f265196109d108c106b105b433dc855a0db3cc927103701206e953059f45a30944133f415e2c85260cb1f5005cf16c9f9008101012014007c5122216e955b59f45a3098c801cf004133f442e203a410571046443512c87f01ca0055705078ce15cbff13cb1ff40001c8f40012f40012ce12cecdc9ed5404fe8ffb31d31f30f8416f243032258101012459f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b358120f121f2f48200efb8f82324bbf2f48200f4d22c8208989680bcf2f40b8208989680a15166a05305a904109a108a107a553006050c8101010dc855a0db3cc947305240e0211f20161700fa206e953059f45a30944133f415e2c813cb1f5005cf16c9f90081010154530052304133f40c6fa19401d70030925b6de270216eb39630206ef2d0809131e281010106a0251036216e955b59f45a3098c801cf004133f442e210575514c87f01ca0055705078ce15cbff13cb1ff40001c8f40012f40012ce12cecdc9ed5403fc82107b562c3fbae30221821070ccaed4bae302018210946a98b6ba8e60d33f30c8018210aff90f5758cb1fcb3fc91068105710461035443012f84270705003804201503304c8cf8580ca00cf8440ce01fa02806acf40f400c901fb00c87f01ca0055705078ce15cbff13cb1ff40001c8f40012f40012ce12cecdc9ed54e0181e2702fe31d31fd31fd430d0f8416f2410235f03268101012559f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b8120f158f2f48200d92d51b9c7051bf2f48200a85353c5b9f2f4c852d0cb1f52c0cb1fc9f9008200e1e5561081010123714133f40c6fa19401d70030925b6de26ef2f41f1904fac852e0cb1f1dcb1f28cf16c9f9008200bd110c5613f9101bf2f41d810101500b7f71216e955b59f45a3098c801cf004133f442e20ca45302b98101015373103d4cdbc855a0db3cc9103714206e953059f45a30944133f415e27188103610265a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb08a201a1b1c002a00000000436865636b706f696e742072657761726400065bcf81015a8ae2f400c901fb0010575514c87f01ca0055705078ce15cbff13cb1ff40001c8f40012f40012ce12cecdc9ed541d001a58cf8680cf8480f400f400cf8103e831d31f30f8416f2410235f03248101012359f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b81452551cbc7051cf2f4812fbef82324bcf2f48200f35301f2f45342a124a8810101702b519b09108b5076105b03504e4bb0c855a0db3cc910385e311f20210034fa40fa40d401d001fa00d31ffa00d31fd33fd33fd200d20055a0003c50abce18ce06c8ce16cd5004fa0212cb1f01fa02cb1fcb3fcb3fca00ca0003be206e953059f45a30944133f415e222c2008f445252c7058ebc7188103610265a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb00e30d92355be210575514222326002800000000556e636c61696d656420726566756e6402aa3420a7148064a90466a121c2008ebc71882a0344445a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb009131e220c2009130e30d2524017671882a55205a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb0025003400000000506572736f6e616c206368616c6c656e6765206665650042c87f01ca0055705078ce15cbff13cb1ff40001c8f40012f40012ce12cecdc9ed54000a5f09f2c0829f00dd07');
+    const __code = Cell.fromHex('b5ee9c72410221010007f1000228ff008e88f4a413f4bcf2c80bed5320e303ed43d9010f020271020a02012003050191bbbe4ed44d0d200018e1cfa40d3ffd31ff404d401d0f404fa40fa403010371036103510346c178e1bfa40810101d700fa40d401d0fa403014433004d15502706d5a6d59e2db3c6c718040002240201c7060801c0a837ed44d0d200018e1cfa40d3ffd31ff404d401d0f404fa40fa403010371036103510346c178e1bfa40810101d700fa40d401d0fa403014433004d15502706d5a6d59e25506db3c6c71206e92306d99206ef2d0806f2b6f0be2206e92306dde07013a810101250259f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be21a0190a91ded44d0d200018e1cfa40d3ffd31ff404d401d0f404fa40fa403010371036103510346c178e1bfa40810101d700fa40d401d0fa403014433004d15502706d5a6d59e2db3c6c71090002260201200b0d0191b8bf5ed44d0d200018e1cfa40d3ffd31ff404d401d0f404fa40fa403010371036103510346c178e1bfa40810101d700fa40d401d0fa403014433004d15502706d5a6d59e2db3c6c7180c0002250195b8790ed44d0d200018e1cfa40d3ffd31ff404d401d0f404fa40fa403010371036103510346c178e1bfa40810101d700fa40d401d0fa403014433004d15502706d5a6d59e25516db3c6c7180e0058c812cb1f01cf16c9f900810101530450334133f40c6fa19401d70030925b6de2206eb395206ef2d080e0307003f63001d072d721d200d200fa4021103450666f04f86102f862ed44d0d200018e1cfa40d3ffd31ff404d401d0f404fa40fa403010371036103510346c178e1bfa40810101d700fa40d401d0fa403014433004d15502706d5a6d59e208925f08e006d70d1ff2e082218210c2860504bae30221821048402acdbae3022110121402fc31fa40d401d001d31fd33fd20030f8416f243032816cf022820afaf080bcf2f4816f8225c200f2f4f8235240bcf2e65301820afaf080a15304a9048108cd21c200f2f481010170f8237f265196109d108c106b105b433dc855a0db3cc926103601206e953059f45a30944133f415e2c85250cb1f5004cf16c9f9008101011b1100745122216e955b59f45a3098c801cf004133f442e202a4104610355034c87f01ca0055605067ce14cbff12cb1ff40001c8f40012ce12cecdc9ed5403f631d31f30f8416f243032248101012459f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b358120f121f2f48200efb8f82324bbf2f48200f4d22c8208989680bcf2f40b8208989680a15166a05305a904109a108a107a553006050c8101010dc855a0db3cc9463052401a1b1300f4206e953059f45a30944133f415e2c813cb1f5004cf16c9f90081010154530052304133f40c6fa19401d70030925b6de270216eb39630206ef2d0809131e281010105a0241035216e955b59f45a3098c801cf004133f442e210465513c87f01ca0055605067ce14cbff12cb1ff40001c8f40012ce12cecdc9ed5402fa8210f9dddb36bae30221821070ccaed4bae302018210946a98b6ba8e5ad33f30c8018210aff90f5758cb1fcb3fc91057104610354430f84270705003804201503304c8cf8580ca00cf8440ce01fa02806acf40f400c901fb00c87f01ca0055605067ce14cbff12cb1ff40001c8f40012ce12cecdc9ed54e05f08f2c082151902fc31d31fd31fd430d0f8416f2410235f03258101012559f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b8120f158f2f48200d92d51b9c7051bf2f482009a8c53c3bcf2f481098253c5bbf2f4c852d0cb1f52c0cb1f28cf16c9f9008200bd110c5612f9101bf2f452a2a122a81a1603c453a3b981010128104d103d4ccbc855a0db3cc9103614206e953059f45a30944133f415e2718810255a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb00104655131b1718002a00000000436865636b706f696e7420726577617264003cc87f01ca0055605067ce14cbff12cb1ff40001c8f40012ce12cecdc9ed5403e831d31f30f8416f2410235f03238101012359f40d6fa192306ddf206e92306d8e87d0db3c6c1b6f0be281209a216eb3f2f4206ef2d0806f2b81452551cbc7051cf2f4812fbef82324bcf2f48200f35301f2f45342a124a8810101702b519b09108b5076105b03504e4bb0c855a0db3cc910375e311a1b1c0034fa40fa40d401d001fa00d31ffa00d31fd33fd33fd200d20055a0003c50abce18ce06c8ce16cd5004fa0212cb1f01fa02cb1fcb3fcb3fca00ca0002fa206e953059f45a30944133f415e222c2008f445242c7058ebc7188103510255a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb00e30d92345be210465513c87f01ca0055605067ce14cbff12cb1ff40001c8f40012ce12cecdc9ed541d1e002800000000556e636c61696d656420726566756e6402aa3320a7148064a90466a121c2008ebc7188290344445a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb009131e220c2009130e30d201f017671882955205a6d6d40037fc8cf8580ca00cf8440ce01fa028069cf40025c6e016eb0935bcf819d58cf8680cf8480f400f400cf81e2f400c901fb0020003400000000506572736f6e616c206368616c6c656e6765206665651193d71e');
     const builder = beginCell();
     builder.storeUint(0, 1);
     initProductivityEscrow_init_args({ $$type: 'ProductivityEscrow_init_args', owner, verifierPublicKey, feeWalletA, feeWalletB })(builder);
@@ -1349,16 +1343,16 @@ export const ProductivityEscrow_errors = {
     138: { message: "Not a basechain address" },
     1619: { message: "End date must be in the future" },
     2253: { message: "Deposit too small for checkpoint count" },
+    2434: { message: "Earned count exceeds total checkpoints" },
     8346: { message: "Challenge not found" },
     8433: { message: "Challenge is not active" },
     12222: { message: "Challenge has not ended yet" },
     17701: { message: "Only sponsor can refund" },
     27888: { message: "Insufficient deposit. Must send TON to fund the challenge." },
     28546: { message: "Must have at least 1 checkpoint" },
-    43091: { message: "Invalid checkpoint index" },
+    39564: { message: "No new checkpoints to claim" },
     48401: { message: "Invalid signature" },
     55597: { message: "Only beneficiary can claim" },
-    57829: { message: "Checkpoint already claimed" },
     61368: { message: "Challenge has expired" },
     62291: { message: "Challenge already closed" },
     62674: { message: "Must send more than 0.01 TON" },
@@ -1403,16 +1397,16 @@ export const ProductivityEscrow_errors_backward = {
     "Not a basechain address": 138,
     "End date must be in the future": 1619,
     "Deposit too small for checkpoint count": 2253,
+    "Earned count exceeds total checkpoints": 2434,
     "Challenge not found": 8346,
     "Challenge is not active": 8433,
     "Challenge has not ended yet": 12222,
     "Only sponsor can refund": 17701,
     "Insufficient deposit. Must send TON to fund the challenge.": 27888,
     "Must have at least 1 checkpoint": 28546,
-    "Invalid checkpoint index": 43091,
+    "No new checkpoints to claim": 39564,
     "Invalid signature": 48401,
     "Only beneficiary can claim": 55597,
-    "Checkpoint already claimed": 57829,
     "Challenge has expired": 61368,
     "Challenge already closed": 62291,
     "Must send more than 0.01 TON": 62674,
@@ -1436,10 +1430,10 @@ const ProductivityEscrow_types: ABIType[] = [
     {"name":"ChangeOwnerOk","header":846932810,"fields":[{"name":"queryId","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"newOwner","type":{"kind":"simple","type":"address","optional":false}}]},
     {"name":"CreateChallenge","header":3263563012,"fields":[{"name":"beneficiary","type":{"kind":"simple","type":"address","optional":false}},{"name":"challengeId","type":{"kind":"simple","type":"string","optional":false}},{"name":"totalCheckpoints","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"endDate","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"unlisted","type":{"kind":"simple","type":"bool","optional":false}}]},
     {"name":"AddFunds","header":1212164813,"fields":[{"name":"challengeIdx","type":{"kind":"simple","type":"uint","optional":false,"format":32}}]},
-    {"name":"ClaimCheckpoint","header":2069244991,"fields":[{"name":"challengeIdx","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"checkpointIndex","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"signature","type":{"kind":"simple","type":"slice","optional":false}}]},
+    {"name":"ClaimAll","header":4192066358,"fields":[{"name":"challengeIdx","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"earnedCount","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"signature","type":{"kind":"simple","type":"slice","optional":false}}]},
     {"name":"RefundUnclaimed","header":1892462292,"fields":[{"name":"challengeIdx","type":{"kind":"simple","type":"uint","optional":false,"format":32}}]},
     {"name":"ChallengeData","header":null,"fields":[{"name":"sponsor","type":{"kind":"simple","type":"address","optional":false}},{"name":"beneficiary","type":{"kind":"simple","type":"address","optional":false}},{"name":"challengeId","type":{"kind":"simple","type":"string","optional":false}},{"name":"totalDeposit","type":{"kind":"simple","type":"uint","optional":false,"format":"coins"}},{"name":"totalCheckpoints","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"amountPerCheckpoint","type":{"kind":"simple","type":"uint","optional":false,"format":"coins"}},{"name":"claimedCount","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"endDate","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"createdAt","type":{"kind":"simple","type":"uint","optional":false,"format":64}},{"name":"active","type":{"kind":"simple","type":"bool","optional":false}},{"name":"unlisted","type":{"kind":"simple","type":"bool","optional":false}}]},
-    {"name":"ProductivityEscrow$Data","header":null,"fields":[{"name":"owner","type":{"kind":"simple","type":"address","optional":false}},{"name":"verifierPublicKey","type":{"kind":"simple","type":"uint","optional":false,"format":256}},{"name":"challengeCount","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"challenges","type":{"kind":"dict","key":"int","value":"ChallengeData","valueFormat":"ref"}},{"name":"claimedCheckpoints","type":{"kind":"dict","key":"int","value":"bool"}},{"name":"sponsorContributions","type":{"kind":"dict","key":"int","value":"int"}},{"name":"feeWalletA","type":{"kind":"simple","type":"address","optional":false}},{"name":"feeWalletB","type":{"kind":"simple","type":"address","optional":false}}]},
+    {"name":"ProductivityEscrow$Data","header":null,"fields":[{"name":"owner","type":{"kind":"simple","type":"address","optional":false}},{"name":"verifierPublicKey","type":{"kind":"simple","type":"uint","optional":false,"format":256}},{"name":"challengeCount","type":{"kind":"simple","type":"uint","optional":false,"format":32}},{"name":"challenges","type":{"kind":"dict","key":"int","value":"ChallengeData","valueFormat":"ref"}},{"name":"sponsorContributions","type":{"kind":"dict","key":"int","value":"int"}},{"name":"feeWalletA","type":{"kind":"simple","type":"address","optional":false}},{"name":"feeWalletB","type":{"kind":"simple","type":"address","optional":false}}]},
 ]
 
 const ProductivityEscrow_opcodes = {
@@ -1450,14 +1444,13 @@ const ProductivityEscrow_opcodes = {
     "ChangeOwnerOk": 846932810,
     "CreateChallenge": 3263563012,
     "AddFunds": 1212164813,
-    "ClaimCheckpoint": 2069244991,
+    "ClaimAll": 4192066358,
     "RefundUnclaimed": 1892462292,
 }
 
 const ProductivityEscrow_getters: ABIGetter[] = [
     {"name":"challengeCount","methodId":80868,"arguments":[],"returnType":{"kind":"simple","type":"int","optional":false,"format":257}},
     {"name":"challenge","methodId":81975,"arguments":[{"name":"idx","type":{"kind":"simple","type":"int","optional":false,"format":257}}],"returnType":{"kind":"simple","type":"ChallengeData","optional":true}},
-    {"name":"isCheckpointClaimed","methodId":96514,"arguments":[{"name":"challengeIdx","type":{"kind":"simple","type":"int","optional":false,"format":257}},{"name":"checkpointIdx","type":{"kind":"simple","type":"int","optional":false,"format":257}}],"returnType":{"kind":"simple","type":"bool","optional":false}},
     {"name":"sponsorContribution","methodId":116624,"arguments":[{"name":"challengeIdx","type":{"kind":"simple","type":"int","optional":false,"format":257}},{"name":"sponsor","type":{"kind":"simple","type":"address","optional":false}}],"returnType":{"kind":"simple","type":"int","optional":false,"format":257}},
     {"name":"verifierPublicKey","methodId":101365,"arguments":[],"returnType":{"kind":"simple","type":"int","optional":false,"format":257}},
     {"name":"owner","methodId":83229,"arguments":[],"returnType":{"kind":"simple","type":"address","optional":false}},
@@ -1466,7 +1459,6 @@ const ProductivityEscrow_getters: ABIGetter[] = [
 export const ProductivityEscrow_getterMapping: { [key: string]: string } = {
     'challengeCount': 'getChallengeCount',
     'challenge': 'getChallenge',
-    'isCheckpointClaimed': 'getIsCheckpointClaimed',
     'sponsorContribution': 'getSponsorContribution',
     'verifierPublicKey': 'getVerifierPublicKey',
     'owner': 'getOwner',
@@ -1475,7 +1467,7 @@ export const ProductivityEscrow_getterMapping: { [key: string]: string } = {
 const ProductivityEscrow_receivers: ABIReceiver[] = [
     {"receiver":"internal","message":{"kind":"typed","type":"CreateChallenge"}},
     {"receiver":"internal","message":{"kind":"typed","type":"AddFunds"}},
-    {"receiver":"internal","message":{"kind":"typed","type":"ClaimCheckpoint"}},
+    {"receiver":"internal","message":{"kind":"typed","type":"ClaimAll"}},
     {"receiver":"internal","message":{"kind":"typed","type":"RefundUnclaimed"}},
     {"receiver":"internal","message":{"kind":"typed","type":"Deploy"}},
 ]
@@ -1515,7 +1507,7 @@ export class ProductivityEscrow implements Contract {
         this.init = init;
     }
     
-    async send(provider: ContractProvider, via: Sender, args: { value: bigint, bounce?: boolean| null | undefined }, message: CreateChallenge | AddFunds | ClaimCheckpoint | RefundUnclaimed | Deploy) {
+    async send(provider: ContractProvider, via: Sender, args: { value: bigint, bounce?: boolean| null | undefined }, message: CreateChallenge | AddFunds | ClaimAll | RefundUnclaimed | Deploy) {
         
         let body: Cell | null = null;
         if (message && typeof message === 'object' && !(message instanceof Slice) && message.$$type === 'CreateChallenge') {
@@ -1524,8 +1516,8 @@ export class ProductivityEscrow implements Contract {
         if (message && typeof message === 'object' && !(message instanceof Slice) && message.$$type === 'AddFunds') {
             body = beginCell().store(storeAddFunds(message)).endCell();
         }
-        if (message && typeof message === 'object' && !(message instanceof Slice) && message.$$type === 'ClaimCheckpoint') {
-            body = beginCell().store(storeClaimCheckpoint(message)).endCell();
+        if (message && typeof message === 'object' && !(message instanceof Slice) && message.$$type === 'ClaimAll') {
+            body = beginCell().store(storeClaimAll(message)).endCell();
         }
         if (message && typeof message === 'object' && !(message instanceof Slice) && message.$$type === 'RefundUnclaimed') {
             body = beginCell().store(storeRefundUnclaimed(message)).endCell();
@@ -1552,15 +1544,6 @@ export class ProductivityEscrow implements Contract {
         const source = (await provider.get('challenge', builder.build())).stack;
         const result_p = source.readTupleOpt();
         const result = result_p ? loadTupleChallengeData(result_p) : null;
-        return result;
-    }
-    
-    async getIsCheckpointClaimed(provider: ContractProvider, challengeIdx: bigint, checkpointIdx: bigint) {
-        const builder = new TupleBuilder();
-        builder.writeNumber(challengeIdx);
-        builder.writeNumber(checkpointIdx);
-        const source = (await provider.get('isCheckpointClaimed', builder.build())).stack;
-        const result = source.readBoolean();
         return result;
     }
     

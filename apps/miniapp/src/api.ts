@@ -36,7 +36,7 @@ export interface SignProofResponse {
   verified: boolean;
   earnedCount: number;
   alreadyClaimed: number;
-  newCheckpoints: { checkpointIndex: number; signature: string }[];
+  signature: string;
   challengeIdx: number;
   beneficiaryAddress: string;
 }

@@ -4,9 +4,8 @@ import { useTonConnectUI, useTonAddress } from "@tonconnect/ui-react";
 import {
   getChallenge,
   getSponsorContribution,
-  isCheckpointClaimed,
   buildAddFundsBody,
-  buildClaimCheckpointBody,
+  buildClaimAllBody,
   buildRefundUnclaimedBody,
   CONTRACT_ADDRESS,
   normalizeAddress,
@@ -26,7 +25,7 @@ function getOAuthAppKey(appKey: string): (typeof OAUTH_APPS)[number] | null {
 type IndexedChallenge = OnChainChallenge & { index: number };
 type ChallengeLocationState = { challenge?: IndexedChallenge };
 
-function buildFallbackClaimedMap(challenge: OnChainChallenge): boolean[] {
+function buildClaimedMap(challenge: OnChainChallenge): boolean[] {
   return Array.from({ length: challenge.totalCheckpoints }, (_, i) => i < challenge.claimedCount);
 }
 
@@ -50,14 +49,13 @@ export function ChallengeDetail() {
 
   const [challenge, setChallenge] = useState<OnChainChallenge | null>(prefetchedChallenge);
   const [claimedMap, setClaimedMap] = useState<boolean[]>(
-    prefetchedChallenge ? buildFallbackClaimedMap(prefetchedChallenge) : [],
+    prefetchedChallenge ? buildClaimedMap(prefetchedChallenge) : [],
   );
   const [loading, setLoading] = useState(prefetchedChallenge === null);
   const [error, setError] = useState("");
   const [verification, setVerification] = useState<VerificationResult | null>(null);
   const [verifying, setVerifying] = useState(false);
   const [claiming, setClaiming] = useState(false);
-  const [claimCount, setClaimCount] = useState(1);
   const [refunding, setRefunding] = useState(false);
   const [fundAmount, setFundAmount] = useState("");
   const [funding, setFunding] = useState(false);
@@ -71,7 +69,7 @@ export function ChallengeDetail() {
   useEffect(() => {
     setLoading(prefetchedChallenge === null);
     setChallenge(prefetchedChallenge);
-    setClaimedMap(prefetchedChallenge ? buildFallbackClaimedMap(prefetchedChallenge) : []);
+    setClaimedMap(prefetchedChallenge ? buildClaimedMap(prefetchedChallenge) : []);
     setUserContribution(null);
     setCreatorContribution(null);
     setVerification(null);
@@ -109,9 +107,6 @@ export function ChallengeDetail() {
         return;
       }
 
-      const claimedPromise = Promise.all(
-        Array.from({ length: c.totalCheckpoints }, (_, i) => isCheckpointClaimed(idx, i)),
-      );
       const creatorContributionPromise = getSponsorContribution(idx, c.sponsor);
       const userContributionPromise = userAddress
         ? userAddress === c.sponsor
@@ -125,15 +120,14 @@ export function ChallengeDetail() {
 
       const progressPromise = backendApi.getProgress(idx).catch(() => ({ challengeIdx: idx, progress: 0 }));
 
-      const [claimed, creatorStake, currentUserStake, auth, prog] = await Promise.all([
-        claimedPromise,
+      const [creatorStake, currentUserStake, auth, prog] = await Promise.all([
         creatorContributionPromise,
         userContributionPromise,
         authStatusPromise,
         progressPromise,
       ]);
 
-      setClaimedMap(claimed);
+      setClaimedMap(buildClaimedMap(c));
       setCreatorContribution(creatorStake);
       setUserContribution(userAddress ? currentUserStake : null);
       setBackendProgress(prog.progress);
@@ -172,30 +166,28 @@ export function ChallengeDetail() {
 
     setClaiming(true);
     try {
-      // Backend verifies performance and returns signed proofs for all earned unclaimed checkpoints
       const proof = await backendApi.signProof({
         challengeIdx: idx,
         beneficiaryAddress: userAddress,
         duolingoUsername: duolingoInput || undefined,
       });
 
-      if (proof.newCheckpoints.length === 0) {
+      if (proof.earnedCount <= proof.alreadyClaimed) {
         alert("No new checkpoints to claim.");
         return;
       }
 
-      // Build one message per checkpoint, all sent in a single wallet confirmation
-      const messages = proof.newCheckpoints.map((cp) => ({
-        address: CONTRACT_ADDRESS,
-        amount: toNano("0.05").toString(),
-        payload: buildClaimCheckpointBody(idx, cp.checkpointIndex, cp.signature)
-          .toBoc()
-          .toString("base64"),
-      }));
+      const body = buildClaimAllBody(idx, proof.earnedCount, proof.signature);
 
       await tonConnectUI.sendTransaction({
         validUntil: Math.floor(Date.now() / 1000) + 600,
-        messages,
+        messages: [
+          {
+            address: CONTRACT_ADDRESS,
+            amount: toNano("0.05").toString(),
+            payload: body.toBoc().toString("base64"),
+          },
+        ],
       });
 
       await loadChallenge({ forceRefresh: true });

@@ -1,6 +1,6 @@
 # Tact compilation report
 Contract: ProductivityEscrow
-BoC Size: 2278 bytes
+BoC Size: 2045 bytes
 
 ## Structures (Structs and Messages)
 Total structures: 21
@@ -73,9 +73,9 @@ Signature: `CreateChallenge{beneficiary:address,challengeId:^string,totalCheckpo
 TL-B: `add_funds#48402acd challengeIdx:uint32 = AddFunds`
 Signature: `AddFunds{challengeIdx:uint32}`
 
-### ClaimCheckpoint
-TL-B: `claim_checkpoint#7b562c3f challengeIdx:uint32 checkpointIndex:uint32 signature:^slice = ClaimCheckpoint`
-Signature: `ClaimCheckpoint{challengeIdx:uint32,checkpointIndex:uint32,signature:^slice}`
+### ClaimAll
+TL-B: `claim_all#f9dddb36 challengeIdx:uint32 earnedCount:uint32 signature:^slice = ClaimAll`
+Signature: `ClaimAll{challengeIdx:uint32,earnedCount:uint32,signature:^slice}`
 
 ### RefundUnclaimed
 TL-B: `refund_unclaimed#70ccaed4 challengeIdx:uint32 = RefundUnclaimed`
@@ -86,21 +86,17 @@ TL-B: `_ sponsor:address beneficiary:address challengeId:^string totalDeposit:co
 Signature: `ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}`
 
 ### ProductivityEscrow$Data
-TL-B: `_ owner:address verifierPublicKey:uint256 challengeCount:uint32 challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}> claimedCheckpoints:dict<int, bool> sponsorContributions:dict<int, int> feeWalletA:address feeWalletB:address = ProductivityEscrow`
-Signature: `ProductivityEscrow{owner:address,verifierPublicKey:uint256,challengeCount:uint32,challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}>,claimedCheckpoints:dict<int, bool>,sponsorContributions:dict<int, int>,feeWalletA:address,feeWalletB:address}`
+TL-B: `_ owner:address verifierPublicKey:uint256 challengeCount:uint32 challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}> sponsorContributions:dict<int, int> feeWalletA:address feeWalletB:address = ProductivityEscrow`
+Signature: `ProductivityEscrow{owner:address,verifierPublicKey:uint256,challengeCount:uint32,challenges:dict<int, ^ChallengeData{sponsor:address,beneficiary:address,challengeId:^string,totalDeposit:coins,totalCheckpoints:uint32,amountPerCheckpoint:coins,claimedCount:uint32,endDate:uint64,createdAt:uint64,active:bool,unlisted:bool}>,sponsorContributions:dict<int, int>,feeWalletA:address,feeWalletB:address}`
 
 ## Get methods
-Total get methods: 6
+Total get methods: 5
 
 ## challengeCount
 No arguments
 
 ## challenge
 Argument: idx
-
-## isCheckpointClaimed
-Argument: challengeIdx
-Argument: checkpointIdx
 
 ## sponsorContribution
 Argument: challengeIdx
@@ -151,16 +147,16 @@ No arguments
 * 138: Not a basechain address
 * 1619: End date must be in the future
 * 2253: Deposit too small for checkpoint count
+* 2434: Earned count exceeds total checkpoints
 * 8346: Challenge not found
 * 8433: Challenge is not active
 * 12222: Challenge has not ended yet
 * 17701: Only sponsor can refund
 * 27888: Insufficient deposit. Must send TON to fund the challenge.
 * 28546: Must have at least 1 checkpoint
-* 43091: Invalid checkpoint index
+* 39564: No new checkpoints to claim
 * 48401: Invalid signature
 * 55597: Only beneficiary can claim
-* 57829: Checkpoint already claimed
 * 61368: Challenge has expired
 * 62291: Challenge already closed
 * 62674: Must send more than 0.01 TON

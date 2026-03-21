@@ -143,8 +143,8 @@ export function addChallengeEvents(challengeIdx: number, entries: EventEntry[]):
 }
 
 export function getChallengeProgress(challengeIdx: number): number {
-  const row = db().prepare("SELECT COALESCE(SUM(count), 0) as total FROM challenge_events WHERE challenge_idx = ?").get(challengeIdx) as { total: number };
-  return row.total;
+  const row = db().prepare("SELECT COALESCE(SUM(count), 0) as total FROM challenge_events WHERE challenge_idx = ?").get(challengeIdx) as { total: number | bigint };
+  return Number(row.total);
 }
 
 export function getChallengeEvents(challengeIdx: number): EventEntry[] {

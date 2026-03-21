@@ -2,7 +2,7 @@ import { sign, keyPairFromSecretKey } from "@ton/crypto";
 import { beginCell, Address } from "@ton/core";
 
 /**
- * The backend holds a private key used to sign checkpoint claim proofs.
+ * The backend holds a private key used to sign claim proofs.
  * The matching public key is stored in the smart contract at deploy time.
  *
  * VERIFIER_SECRET_KEY must be a 64-byte hex ed25519 secret key.
@@ -16,21 +16,21 @@ function getKeyPair() {
 }
 
 /**
- * Signs a checkpoint claim proof.
+ * Signs a ClaimAll proof.
  *
  * The signed data matches what the contract verifies:
- *   hash( challengeIdx(uint32) | checkpointIndex(uint32) | beneficiaryAddress )
+ *   hash( challengeIdx(uint32) | earnedCount(uint32) | beneficiaryAddress )
  */
-export function signCheckpointProof(
+export function signClaimAllProof(
   challengeIdx: number,
-  checkpointIndex: number,
+  earnedCount: number,
   beneficiaryAddress: Address,
 ): Buffer {
   const kp = getKeyPair();
 
   const dataCell = beginCell()
     .storeUint(challengeIdx, 32)
-    .storeUint(checkpointIndex, 32)
+    .storeUint(earnedCount, 32)
     .storeAddress(beneficiaryAddress)
     .endCell();
 

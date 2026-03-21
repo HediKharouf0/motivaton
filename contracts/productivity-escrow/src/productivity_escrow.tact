@@ -15,9 +15,9 @@ message AddFunds {
     challengeIdx: Int as uint32;
 }
 
-message ClaimCheckpoint {
+message ClaimAll {
     challengeIdx: Int as uint32;
-    checkpointIndex: Int as uint32;
+    earnedCount: Int as uint32;
     signature: Slice;
 }
 
@@ -46,8 +46,6 @@ contract ProductivityEscrow with Deployable, Ownable {
     challengeCount: Int as uint32 = 0;
 
     challenges: map<Int, ChallengeData>;
-    // Claimed checkpoints keyed by: hash(challengeIdx ++ checkpointIdx)
-    claimedCheckpoints: map<Int, Bool>;
     // Sponsor contributions keyed by: hash(challengeIdx ++ sponsorAddress)
     sponsorContributions: map<Int, Int>;
 
@@ -145,9 +143,10 @@ contract ProductivityEscrow with Deployable, Ownable {
         self.sponsorContributions.set(contribKey, prev + addedDeposit);
     }
 
-    // Beneficiary claims a checkpoint with a backend-signed proof.
-    // Uses challengeIdx (sequential index) for unambiguous lookup.
-    receive(msg: ClaimCheckpoint) {
+    // Beneficiary claims all earned checkpoints at once with a backend-signed proof.
+    // The signature covers: challengeIdx + earnedCount + beneficiary
+    // The contract pays out (earnedCount - claimedCount) * amountPerCheckpoint in a single send.
+    receive(msg: ClaimAll) {
         let ctx: Context = context();
 
         let challenge: ChallengeData? = self.challenges.get(msg.challengeIdx);
@@ -156,31 +155,23 @@ contract ProductivityEscrow with Deployable, Ownable {
 
         require(cd.active, "Challenge is not active");
         require(ctx.sender == cd.beneficiary, "Only beneficiary can claim");
-        require(msg.checkpointIndex < cd.totalCheckpoints, "Invalid checkpoint index");
+        require(msg.earnedCount > cd.claimedCount, "No new checkpoints to claim");
+        require(msg.earnedCount <= cd.totalCheckpoints, "Earned count exceeds total checkpoints");
 
-        // Collision-free claim key
-        let claimKey: Int = beginCell()
-            .storeUint(msg.challengeIdx, 32)
-            .storeUint(msg.checkpointIndex, 32)
-            .endCell()
-            .hash();
-        require(self.claimedCheckpoints.get(claimKey) == null, "Checkpoint already claimed");
-
-        // Verify backend signature over: challengeIdx + checkpointIndex + beneficiary
+        // Verify backend signature over: challengeIdx + earnedCount + beneficiary
         let dataHash: Int = beginCell()
             .storeUint(msg.challengeIdx, 32)
-            .storeUint(msg.checkpointIndex, 32)
+            .storeUint(msg.earnedCount, 32)
             .storeAddress(cd.beneficiary)
             .endCell()
             .hash();
 
         require(checkSignature(dataHash, msg.signature, self.verifierPublicKey), "Invalid signature");
 
-        // Mark claimed
-        self.claimedCheckpoints.set(claimKey, true);
-        let newClaimedCount: Int = cd.claimedCount + 1;
+        let newCheckpoints: Int = msg.earnedCount - cd.claimedCount;
+        let payout: Int = newCheckpoints * cd.amountPerCheckpoint;
+        let updatedActive: Bool = msg.earnedCount < cd.totalCheckpoints;
 
-        let updatedActive: Bool = newClaimedCount < cd.totalCheckpoints;
         self.challenges.set(msg.challengeIdx, ChallengeData{
             sponsor: cd.sponsor,
             beneficiary: cd.beneficiary,
@@ -188,7 +179,7 @@ contract ProductivityEscrow with Deployable, Ownable {
             totalDeposit: cd.totalDeposit,
             totalCheckpoints: cd.totalCheckpoints,
             amountPerCheckpoint: cd.amountPerCheckpoint,
-            claimedCount: newClaimedCount,
+            claimedCount: msg.earnedCount,
             endDate: cd.endDate,
             createdAt: cd.createdAt,
             active: updatedActive,
@@ -197,7 +188,7 @@ contract ProductivityEscrow with Deployable, Ownable {
 
         send(SendParameters{
             to: cd.beneficiary,
-            value: cd.amountPerCheckpoint,
+            value: payout,
             mode: SendPayGasSeparately,
             body: "Checkpoint reward".asComment()
         });
@@ -275,15 +266,6 @@ contract ProductivityEscrow with Deployable, Ownable {
 
     get fun challenge(idx: Int): ChallengeData? {
         return self.challenges.get(idx);
-    }
-
-    get fun isCheckpointClaimed(challengeIdx: Int, checkpointIdx: Int): Bool {
-        let claimKey: Int = beginCell()
-            .storeUint(challengeIdx, 32)
-            .storeUint(checkpointIdx, 32)
-            .endCell()
-            .hash();
-        return self.claimedCheckpoints.get(claimKey) != null;
     }
 
     get fun sponsorContribution(challengeIdx: Int, sponsor: Address): Int {

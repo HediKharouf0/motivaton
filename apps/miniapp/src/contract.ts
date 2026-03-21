@@ -7,7 +7,7 @@ const TON_API_KEY = import.meta.env.VITE_TON_API_KEY || "";
 // Opcodes from compiled Tact ABI
 const OP_CREATE_CHALLENGE = 0xc2860504;
 const OP_ADD_FUNDS = 0x48402acd;
-const OP_CLAIM_CHECKPOINT = 0x7b562c3f;
+const OP_CLAIM_ALL = 0xf9e43eb6;
 const OP_REFUND_UNCLAIMED = 0x70ccaed4;
 
 export interface OnChainChallenge {
@@ -203,15 +203,6 @@ export async function getAllChallenges(): Promise<(OnChainChallenge & { index: n
   return challenges;
 }
 
-export async function isCheckpointClaimed(challengeIdx: number, checkpointIdx: number): Promise<boolean> {
-  const result = await rpcCall("runGetMethod", {
-    address: CONTRACT_ADDRESS,
-    method: "isCheckpointClaimed",
-    stack: [["num", String(challengeIdx)], ["num", String(checkpointIdx)]],
-  });
-  return getBooleanValue(result.stack[0]);
-}
-
 export function buildCreateChallengeBody(
   beneficiary: string,
   challengeId: string,
@@ -250,21 +241,20 @@ export async function getSponsorContribution(challengeIdx: number, sponsorAddres
 }
 
 /**
- * ClaimCheckpoint: opcode(32) | challengeIdx(uint32) | checkpointIndex(uint32) | signature(ref cell)
+ * ClaimAll: opcode(32) | challengeIdx(uint32) | earnedCount(uint32) | signature(slice)
  */
-export function buildClaimCheckpointBody(
+export function buildClaimAllBody(
   challengeIdx: number,
-  checkpointIndex: number,
+  earnedCount: number,
   signatureBase64: string,
 ) {
   const sigBuf = Buffer.from(signatureBase64, "base64");
-  const sigCell = beginCell().storeBuffer(sigBuf).endCell();
 
   return beginCell()
-    .storeUint(OP_CLAIM_CHECKPOINT, 32)
+    .storeUint(OP_CLAIM_ALL, 32)
     .storeUint(challengeIdx, 32)
-    .storeUint(checkpointIndex, 32)
-    .storeRef(sigCell)
+    .storeUint(earnedCount, 32)
+    .storeBuffer(sigBuf)
     .endCell();
 }
 
