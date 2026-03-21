@@ -2,13 +2,16 @@ import Database from "better-sqlite3";
 import { mkdirSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 
-const DB_PATH = process.env.DATABASE_PATH || resolve(import.meta.dirname, "../data/motivaton.db");
+function getDbPath(): string {
+  return process.env.DATABASE_PATH || resolve(import.meta.dirname, "../data/motivaton.db");
+}
 
 function getDb(): Database.Database {
-  const dir = dirname(DB_PATH);
+  const dbPath = getDbPath();
+  const dir = dirname(dbPath);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 
-  const db = new Database(DB_PATH);
+  const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
 
