@@ -12,7 +12,7 @@ const MANIFEST_URL = "https://hedikharouf0.github.io/motivaton/tonconnect-manife
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <TonConnectUIProvider manifestUrl={MANIFEST_URL}>
-      <BrowserRouter basename="/motivaton">
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/create" element={<CreateChallenge />} />

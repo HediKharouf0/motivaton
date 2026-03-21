@@ -21,8 +21,6 @@ export function CreateChallenge() {
   const [amount, setAmount] = useState("");
   const [whoIsPaid, setWhoIsPaid] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [endHour, setEndHour] = useState("23");
-  const [endMinute, setEndMinute] = useState("59");
   const [duolingoUsername, setDuolingoUsername] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -54,7 +52,7 @@ export function CreateChallenge() {
     try {
       const beneficiary = whoIsPaid || userAddress;
       const endTimestamp = Math.floor(
-        new Date(`${endDate}T${endHour.padStart(2, "0")}:${endMinute.padStart(2, "0")}:00`).getTime() / 1000,
+        new Date(`${endDate}T23:59:59`).getTime() / 1000,
       );
       const totalCheckpoints = count;
 
@@ -173,34 +171,6 @@ export function CreateChallenge() {
           />
         </div>
 
-        {endDate && (
-          <div className="form-group">
-            <label className="form-label">Deadline Time</label>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <select
-                className="form-select"
-                value={endHour}
-                onChange={(e) => setEndHour(e.target.value)}
-                style={{ flex: 1 }}
-              >
-                {Array.from({ length: 24 }, (_, i) => (
-                  <option key={i} value={String(i)}>{String(i).padStart(2, "0")}</option>
-                ))}
-              </select>
-              <span style={{ fontSize: 20, fontWeight: 600 }}>:</span>
-              <select
-                className="form-select"
-                value={endMinute}
-                onChange={(e) => setEndMinute(e.target.value)}
-                style={{ flex: 1 }}
-              >
-                {[0, 15, 30, 45].map((m) => (
-                  <option key={m} value={String(m)}>{String(m).padStart(2, "0")}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
 
         {app === App.Duolingo && (
           <div className="form-group">
@@ -234,7 +204,7 @@ export function CreateChallenge() {
             </div>
             <div className="summary-row">
               <span className="summary-label">Deadline</span>
-              <span>{new Date(endDate).toLocaleDateString()} {endHour.padStart(2, "0")}:{endMinute.padStart(2, "0")}</span>
+              <span>{new Date(endDate).toLocaleDateString()}</span>
             </div>
             <div className="summary-row">
               <span className="summary-label">Payer</span>

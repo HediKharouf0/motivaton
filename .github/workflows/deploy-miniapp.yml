@@ -31,7 +31,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm --filter motivaton-miniapp build
+      - run: GITHUB_PAGES=1 pnpm --filter motivaton-miniapp build
 
       - uses: actions/upload-pages-artifact@v3
         with:

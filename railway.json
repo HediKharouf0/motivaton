@@ -1,0 +1,13 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter motivaton-miniapp build && pnpm --filter motivaton-backend build"
+  },
+  "deploy": {
+    "startCommand": "node apps/backend/dist/index.js",
+    "healthcheckPath": "/api/health",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}

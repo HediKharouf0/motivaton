@@ -5,7 +5,7 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react(), nodePolyfills({ include: ["buffer"] })],
-  base: "/motivaton/",
+  base: process.env.GITHUB_PAGES ? "/motivaton/" : "/",
   envDir: path.resolve(__dirname, "../.."),
   server: {
     port: 5173,
