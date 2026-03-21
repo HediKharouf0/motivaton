@@ -70,7 +70,7 @@ async function eventsProgressJob(lookbackMs: number) {
 
   for (const c of activeChallenges) {
     const [app, action, ...rest] = c.challengeId.split(":");
-    console.log(`[cron]   Challenge #${c.index}: app=${app} action=${action} target=${c.target} progress=${getProgress(c.index)} beneficiary=${c.beneficiary}`);
+    console.log(`[cron]   Challenge #${c.index}: app=${app} action=${action} target=${c.totalCheckpoints} progress=${getProgress(c.index)} beneficiary=${c.beneficiary}`);
   }
 
   for (const [normAddr, { wallet, username, token }] of users) {
@@ -100,7 +100,7 @@ async function eventsProgressJob(lookbackMs: number) {
           console.log(
             `[cron]   Challenge #${c.index} (${c.challengeId}): ` +
             `found ${ids.length} ${action}s, ${newIds.length} new → ` +
-            `progress ${prevProgress} -> ${newProgress}/${c.target}` +
+            `progress ${prevProgress} -> ${newProgress}/${c.totalCheckpoints}` +
             (newIds.length > 0 ? ` [${newIds.join(", ")}]` : ""),
           );
         }
