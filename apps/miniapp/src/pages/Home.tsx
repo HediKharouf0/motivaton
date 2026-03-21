@@ -71,11 +71,15 @@ export function Home() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (!import.meta.env.VITE_CONTRACT_ADDRESS) return;
     setLoading(true);
     setError("");
     getAllChallenges()
       .then(setChallenges)
-      .catch((e) => setError(e.message))
+      .catch((e) => {
+        console.error("Failed to load challenges:", e);
+        setError(e.message);
+      })
       .finally(() => setLoading(false));
   }, []);
 

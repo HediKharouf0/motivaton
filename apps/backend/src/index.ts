@@ -1,3 +1,6 @@
+import { config } from "dotenv";
+import { resolve } from "path";
+config({ path: resolve(import.meta.dirname, "../../.env.local") });
 import express from "express";
 import cors from "cors";
 import { verifyRouter } from "./routes/verify.js";

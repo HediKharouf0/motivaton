@@ -1,4 +1,4 @@
-import { TonClient, Address, beginCell, toNano, TupleReader } from "@ton/ton";
+import { Address, beginCell, toNano, Cell } from "@ton/ton";
 
 const CONTRACT_ADDRESS = import.meta.env.VITE_CONTRACT_ADDRESS || "";
 const TON_ENDPOINT = import.meta.env.VITE_TON_ENDPOINT || "https://testnet.toncenter.com/api/v2/jsonRPC";
@@ -8,15 +8,6 @@ const TON_API_KEY = import.meta.env.VITE_TON_API_KEY || "";
 const OP_CREATE_CHALLENGE = 0xf05423d0;
 const OP_CLAIM_CHECKPOINT = 0x7b562c3f;
 const OP_REFUND_UNCLAIMED = 0x70ccaed4;
-
-function getClient() {
-  return new TonClient({ endpoint: TON_ENDPOINT, apiKey: TON_API_KEY || undefined });
-}
-
-function getContractAddress() {
-  if (!CONTRACT_ADDRESS) throw new Error("VITE_CONTRACT_ADDRESS is not set");
-  return Address.parse(CONTRACT_ADDRESS);
-}
 
 export interface OnChainChallenge {
   sponsor: string;
@@ -30,35 +21,64 @@ export interface OnChainChallenge {
   active: boolean;
 }
 
-/** Parses a ChallengeData tuple returned by the contract getter */
-function parseChallengeDataTuple(reader: TupleReader): OnChainChallenge {
-  const sponsor = reader.readAddress().toString();
-  const beneficiary = reader.readAddress().toString();
-  const challengeId = reader.readString();
-  const totalDeposit = reader.readBigNumber();
-  const totalCheckpoints = Number(reader.readBigNumber());
-  const amountPerCheckpoint = reader.readBigNumber();
-  const claimedCount = Number(reader.readBigNumber());
-  const endDate = Number(reader.readBigNumber());
-  const active = reader.readBoolean();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function rpcCall(method: string, params: Record<string, any>): Promise<any> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (TON_API_KEY) headers["X-API-Key"] = TON_API_KEY;
+  const resp = await fetch(TON_ENDPOINT, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ id: "1", jsonrpc: "2.0", method, params }),
+  });
+  const json = await resp.json();
+  if (!json.ok) throw new Error(json.error || "RPC error");
+  return json.result;
+}
 
-  return { sponsor, beneficiary, challengeId, totalDeposit, totalCheckpoints, amountPerCheckpoint, claimedCount, endDate, active };
+function parseAddress(base64Boc: string): string {
+  const cell = Cell.fromBase64(base64Boc);
+  return cell.beginParse().loadAddress().toString();
+}
+
+function parseString(base64Boc: string): string {
+  const cell = Cell.fromBase64(base64Boc);
+  return cell.beginParse().loadStringTail();
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseChallengeFromElements(elements: any[]): OnChainChallenge {
+  return {
+    sponsor: parseAddress(elements[0].slice.bytes),
+    beneficiary: parseAddress(elements[1].slice.bytes),
+    challengeId: parseString(elements[2].slice.bytes),
+    totalDeposit: BigInt(elements[3].number.number),
+    totalCheckpoints: Number(elements[4].number.number),
+    amountPerCheckpoint: BigInt(elements[5].number.number),
+    claimedCount: Number(elements[6].number.number),
+    endDate: Number(elements[7].number.number),
+    active: elements[8].number.number === "-1",
+  };
 }
 
 export async function getChallengeCount(): Promise<number> {
-  const client = getClient();
-  const result = await client.runMethod(getContractAddress(), "challengeCount");
-  return Number(result.stack.readBigNumber());
+  const result = await rpcCall("runGetMethod", {
+    address: CONTRACT_ADDRESS,
+    method: "challengeCount",
+    stack: [],
+  });
+  return Number(result.stack[0][1]);
 }
 
 export async function getChallenge(idx: number): Promise<OnChainChallenge | null> {
-  const client = getClient();
-  const result = await client.runMethod(getContractAddress(), "challenge", [
-    { type: "int", value: BigInt(idx) },
-  ]);
-  const tuple = result.stack.readTupleOpt();
-  if (!tuple) return null;
-  return parseChallengeDataTuple(tuple);
+  const result = await rpcCall("runGetMethod", {
+    address: CONTRACT_ADDRESS,
+    method: "challenge",
+    stack: [["num", String(idx)]],
+  });
+  const entry = result.stack[0];
+  // entry is ["tuple", { elements: [...] }] for present, or ["num", "0"] for null
+  if (entry[0] !== "tuple") return null;
+  return parseChallengeFromElements(entry[1].elements);
 }
 
 export async function getAllChallenges(): Promise<(OnChainChallenge & { index: number })[]> {
@@ -72,12 +92,12 @@ export async function getAllChallenges(): Promise<(OnChainChallenge & { index: n
 }
 
 export async function isCheckpointClaimed(challengeIdx: number, checkpointIdx: number): Promise<boolean> {
-  const client = getClient();
-  const result = await client.runMethod(getContractAddress(), "isCheckpointClaimed", [
-    { type: "int", value: BigInt(challengeIdx) },
-    { type: "int", value: BigInt(checkpointIdx) },
-  ]);
-  return result.stack.readBoolean();
+  const result = await rpcCall("runGetMethod", {
+    address: CONTRACT_ADDRESS,
+    method: "isCheckpointClaimed",
+    stack: [["num", String(challengeIdx)], ["num", String(checkpointIdx)]],
+  });
+  return result.stack[0][1] === "-1";
 }
 
 /**
