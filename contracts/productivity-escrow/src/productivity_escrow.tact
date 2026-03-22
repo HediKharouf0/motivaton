@@ -157,7 +157,7 @@ contract ProductivityEscrow with Deployable, Ownable {
         let cd: ChallengeData = challenge!!;
 
         require(cd.active, "Challenge is not active");
-        require(ctx.sender == cd.beneficiary, "Only beneficiary can claim");
+        require(ctx.sender == cd.beneficiary || ctx.sender == self.owner, "Only beneficiary or owner can claim");
         require(msg.earnedCount > cd.claimedCount, "No new checkpoints to claim");
         require(msg.earnedCount <= cd.totalCheckpoints, "Earned count exceeds total checkpoints");
 

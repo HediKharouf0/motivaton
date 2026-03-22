@@ -542,7 +542,7 @@ builder $ProductivityEscrow$_store(builder build_0, (slice, int, int, cell, cell
 ;;
 
 (slice, int, int, cell, cell, slice, slice, int) $ProductivityEscrow$_contract_init(slice $owner, int $verifierPublicKey, slice $feeWalletA, slice $feeWalletB, int $nonce) impure inline {
-    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB, $self'nonce)) = (null(), null(), 0, null(), null(), null(), null(), 1);
+    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB, $self'nonce)) = (null(), null(), 0, null(), null(), null(), null(), 0);
     $self'owner = $owner;
     $self'verifierPublicKey = $verifierPublicKey;
     $self'feeWalletA = $feeWalletA;
@@ -701,7 +701,7 @@ _ %owner() method_id(83229) {
         throw_unless(8346, (~ null?($challenge)));
         var ($cd'sponsor, $cd'beneficiary, $cd'challengeId, $cd'totalDeposit, $cd'totalCheckpoints, $cd'amountPerCheckpoint, $cd'claimedCount, $cd'endDate, $cd'createdAt, $cd'active, $cd'unlisted) = $ChallengeData$_not_null($challenge);
         throw_unless(8433, $cd'active);
-        throw_unless(55597, ( equal_slices_bits($ctx'sender, $cd'beneficiary) ));
+        throw_unless(7103, ( (( equal_slices_bits($ctx'sender, $cd'beneficiary) )) ? (true) : (( equal_slices_bits($ctx'sender, $self'owner) )) ));
         throw_unless(39564, ($msg'earnedCount > $cd'claimedCount));
         throw_unless(2434, ($msg'earnedCount <= $cd'totalCheckpoints));
         int $dataHash = $Cell$_fun_hash($Builder$_fun_endCell($Builder$_fun_storeAddress(store_uint(store_uint($global_beginCell(), $msg'challengeIdx, 32), $msg'earnedCount, 32), $cd'beneficiary)));

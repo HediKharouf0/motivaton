@@ -622,9 +622,17 @@ PROGRAM{
       8433 PUSHINT
       ROT
       THROWANYIFNOT
-      55597 PUSHINT
-      s11 s9 XCPU
+      7103 PUSHINT
+      s11 s9 PUSH2
       SDEQ
+      IF:<{
+        s11 POP
+        TRUE
+      }>ELSE<{
+        s0 s11 XCHG
+        20 s() PUSH
+        SDEQ
+      }>
       s1 s11 XCHG
       THROWANYIFNOT
       39564 PUSHINT

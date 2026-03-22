@@ -6,6 +6,7 @@ import { fetchUserEvents, extractEvents } from "./events.js";
 import { fetchRecentAcceptedSubmissions, extractLeetCodeEvents, fetchUserStreak } from "./leetcode.js";
 import { fetchRecentGames, extractChessComEvents } from "./chesscom.js";
 import { fetchStravaActivities, extractStravaEvents, refreshStravaTokens } from "./strava.js";
+import { autoClaimJob } from "./autoclaim.js";
 
 function normalizeAddress(addr: string): string {
   try {
@@ -280,6 +281,7 @@ async function eventsProgressJob() {
 
 async function minuteJob() {
   await eventsProgressJob();
+  await autoClaimJob();
 }
 
 export function startCronJobs() {

@@ -1,6 +1,6 @@
 # Tact compilation report
 Contract: ProductivityEscrow
-BoC Size: 2074 bytes
+BoC Size: 2083 bytes
 
 ## Structures (Structs and Messages)
 Total structures: 21
@@ -148,6 +148,7 @@ No arguments
 * 1619: End date must be in the future
 * 2253: Deposit too small for checkpoint count
 * 2434: Earned count exceeds total checkpoints
+* 7103: Only beneficiary or owner can claim
 * 8346: Challenge not found
 * 8433: Challenge is not active
 * 12222: Challenge has not ended yet
@@ -156,7 +157,6 @@ No arguments
 * 28546: Must have at least 1 checkpoint
 * 39564: No new checkpoints to claim
 * 48401: Invalid signature
-* 55597: Only beneficiary can claim
 * 61368: Challenge has expired
 * 62291: Challenge already closed
 * 62674: Must send more than 0.01 TON
