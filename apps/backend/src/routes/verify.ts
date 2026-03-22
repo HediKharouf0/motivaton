@@ -3,6 +3,7 @@ import { Address } from "@ton/core";
 import { getVerifier } from "../verifiers/index.js";
 import { signClaimAllProof, getVerifierPublicKey } from "../signer.js";
 import { getChallenge } from "../chain.js";
+import { verifyChallengeFromLiveEvents } from "../live-verification.js";
 
 export const verifyRouter = Router();
 
@@ -18,6 +19,23 @@ verifyRouter.post("/check", async (req, res) => {
   if (!app || !action || !count) {
     res.status(400).json({ error: "Missing required fields: app, action, count." });
     return;
+  }
+
+  if (challengeIdx != null && app !== "DUOLINGO") {
+    try {
+      const challenge = await getChallenge(challengeIdx);
+      if (!challenge) {
+        res.status(404).json({ error: `Challenge ${challengeIdx} not found on-chain.` });
+        return;
+      }
+
+      const result = await verifyChallengeFromLiveEvents(challenge, count);
+      res.json(result);
+      return;
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || "Live verification failed." });
+      return;
+    }
   }
 
   const verifier = getVerifier(app);
@@ -84,20 +102,22 @@ verifyRouter.post("/sign-proof", async (req, res) => {
   }
   const [app] = parts;
 
-  const verifier = getVerifier(app);
-  if (!verifier) {
-    res.status(400).json({ error: `Unsupported app: ${app}` });
-    return;
-  }
-
-  // Verify with the full checkpoint count to determine how many were earned
-  const result = await verifier.verify({
-    app,
-    action: parts[1],
-    count: challenge.totalCheckpoints,
-    challengeIdx,
-    duolingoUsername,
-  });
+  const result =
+    app === "DUOLINGO"
+      ? await (() => {
+          const verifier = getVerifier(app);
+          if (!verifier) {
+            throw new Error(`Unsupported app: ${app}`);
+          }
+          return verifier.verify({
+            app,
+            action: parts[1],
+            count: challenge.totalCheckpoints,
+            challengeIdx,
+            duolingoUsername,
+          });
+        })()
+      : await verifyChallengeFromLiveEvents(challenge, challenge.totalCheckpoints);
 
   // Earned checkpoints = min(currentCount, totalCheckpoints)
   const earnedCount = Math.min(result.currentCount, challenge.totalCheckpoints);

@@ -33,6 +33,30 @@ export async function fetchRecentGames(username: string): Promise<ChessComGame[]
   }
 }
 
+export async function fetchGamesSince(username: string, since: Date): Promise<ChessComGame[]> {
+  const results: ChessComGame[] = [];
+  const cursor = new Date(Date.UTC(since.getUTCFullYear(), since.getUTCMonth(), 1));
+  const end = new Date();
+
+  while (cursor <= end) {
+    const year = cursor.getUTCFullYear();
+    const month = String(cursor.getUTCMonth() + 1).padStart(2, "0");
+
+    try {
+      const data = await chesscomFetch<{ games: ChessComGame[] }>(
+        `/player/${username.toLowerCase()}/games/${year}/${month}`,
+      );
+      results.push(...(data.games ?? []));
+    } catch {
+      // Missing monthly archives are not fatal for verification.
+    }
+
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+
+  return results;
+}
+
 function getUserResult(game: ChessComGame, username: string): { result: string; timeClass: string } | null {
   const lower = username.toLowerCase();
   if (game.white.username.toLowerCase() === lower) {

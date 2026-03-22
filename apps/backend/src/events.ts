@@ -73,6 +73,32 @@ export async function fetchUserEvents(username: string, token: string): Promise<
   return resp.json();
 }
 
+export async function fetchUserEventsSince(username: string, token: string, since: Date): Promise<GitHubEvent[]> {
+  const events: GitHubEvent[] = [];
+
+  for (let page = 1; page <= 10; page += 1) {
+    const resp = await fetch(`${GITHUB_API}/users/${username}/events?per_page=100&page=${page}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+    if (!resp.ok) throw new Error(`GitHub Events API ${resp.status}: ${await resp.text()}`);
+
+    const pageEvents = (await resp.json()) as GitHubEvent[];
+    if (pageEvents.length === 0) break;
+
+    events.push(...pageEvents);
+
+    const oldestEvent = pageEvents[pageEvents.length - 1];
+    if (!oldestEvent) break;
+    if (new Date(oldestEvent.created_at) < since) break;
+  }
+
+  return events;
+}
+
 /**
  * Groups events by action type, returning only those after `since`.
  * Does not deduplicate — caller should use addChallengeEvents for that.
