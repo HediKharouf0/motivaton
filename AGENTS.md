@@ -446,3 +446,22 @@ Key files:
 Follow-up gaps:
 - Existing GitHub-linked users may still need to reconnect GitHub so the broader repo-reading scope is present on their stored token.
 - Private or otherwise unreadable GitHub commits can now be skipped from progress until the backend has enough access to inspect them properly.
+
+### 2026-03-22 - GitHub Inspection Now Abstains On Unreadable Commits
+
+Summary:
+- Relaxed the GitHub commit-quality gate so unreadable or insufficiently inspectable commits are no longer treated as fake or low-quality by default.
+- The backend still tries hard to inspect real commit content first through authenticated GitHub commit lookups plus a public fallback, but when that content still is not visible it now abstains instead of rejecting.
+- Tightened the tiny-commit heuristic so it only blocks obviously near-empty commits when real visible content is available to judge.
+
+Why it matters now:
+- Legitimate commits are much less likely to be falsely rejected just because the backend could not read enough of the diff or patch content at that moment.
+- The system now better matches the intended product rule: reject based on what the AI can truly inspect, not based on missing visibility alone.
+
+Key files:
+- `apps/backend/src/cocoon.ts`
+- `AGENTS.md`
+
+Follow-up gaps:
+- Existing GitHub tokens may still need reconnecting to maximize inspectability on private or repo-scoped work.
+- Abstaining on unreadable commits reduces false positives, but it also means some commits can still pass without deep content inspection if GitHub does not expose enough data.

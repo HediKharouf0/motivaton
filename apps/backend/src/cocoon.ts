@@ -515,18 +515,10 @@ function heuristicGitHubBlock(evidence: GitHubEvidenceItem[]): AchievementInspec
     if (allTinyDiff && commitDetails.every((detail) => isLowSignalText(detail.message))) {
       return block("HEURISTIC", "Commits look empty", "Recent GitHub commits look tiny and low-signal.");
     }
-
-    const noVisibleContent = commitDetails.every(
-      (detail) =>
-        (!detail.files || detail.files.length === 0) &&
-        (!detail.patchSnippets || detail.patchSnippets.length === 0),
-    );
-    if (noVisibleContent && commitDetails.every((detail) => isLowSignalText(detail.message))) {
-      return block("HEURISTIC", "No useful commit content", "Recent GitHub commits expose no useful code change evidence.");
-    }
   }
 
   if (
+    commitDetails.length > 0 &&
     commitMessages.length > 0 &&
     commitMessages.every((message) => isLowSignalText(message)) &&
     titles.every((title) => isLowSignalText(title))
@@ -549,11 +541,7 @@ function heuristicSingleGitHubCommitBlock(detail: GitHubCommitDetail | null): Ac
   const hasVisibleContent =
     (detail.files?.length || 0) > 0 || (detail.patchSnippets?.length || 0) > 0 || totalDiff > 0;
 
-  if (!hasVisibleContent) {
-    return block("HEURISTIC", "No useful commit content", "This commit exposes no useful code change content.");
-  }
-
-  if (totalDiff <= 2 && (detail.changedFiles ?? 0) <= 1 && lowSignalMessage) {
+  if (hasVisibleContent && totalDiff <= 1 && (detail.changedFiles ?? 0) <= 1 && lowSignalMessage) {
     return block("HEURISTIC", "Commit looks empty", "This commit looks tiny and low-signal.");
   }
 
@@ -956,7 +944,7 @@ export async function filterGitHubCommitEntriesForProgress(params: {
       const detail =
         repo && commit.sha ? await fetchGitHubCommitDetail(repo, commit.sha, token).catch(() => null) : null;
       if (!detail) {
-        blockedEntries.push({ id: entryId, reason: "Commit not readable yet" });
+        approvedEntries.push({ id: entryId, count: 1 });
         continue;
       }
 
@@ -1037,6 +1025,10 @@ async function inspectGitHubAchievement(challenge: OnChainChallenge): Promise<Ac
     new Date(challenge.createdAt * 1000),
     linked.creds.github.accessToken,
   );
+
+  if (action === "COMMIT" && evidence.flatMap((item) => item.commitDetails || []).length === 0) {
+    return null;
+  }
 
   const heuristicBlock = heuristicGitHubBlock(evidence);
   if (heuristicBlock) return heuristicBlock;
