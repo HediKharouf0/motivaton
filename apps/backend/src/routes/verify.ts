@@ -3,7 +3,6 @@ import { Address } from "@ton/core";
 import { getVerifier } from "../verifiers/index.js";
 import { signClaimAllProof, getVerifierPublicKey } from "../signer.js";
 import { getChallenge } from "../chain.js";
-import { markChallengeClaimed } from "../store.js";
 
 export const verifyRouter = Router();
 
@@ -130,8 +129,6 @@ verifyRouter.post("/sign-proof", async (req, res) => {
 
   // Sign a single proof for ClaimAll: (challengeIdx, earnedCount, beneficiary)
   const signature = signClaimAllProof(challengeIdx, earnedCount, beneficiary).toString("base64");
-
-  markChallengeClaimed(challengeIdx);
 
   res.json({
     verified: true,

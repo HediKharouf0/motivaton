@@ -7,7 +7,7 @@ const TON_API_KEY = import.meta.env.VITE_TON_API_KEY || "";
 // Opcodes from compiled Tact ABI
 const OP_CREATE_CHALLENGE = 0xc2860504;
 const OP_ADD_FUNDS = 0x48402acd;
-const OP_CLAIM_ALL = 0xf9e43eb6;
+const OP_CLAIM_ALL = 0xf9dddb36;
 const OP_REFUND_UNCLAIMED = 0x70ccaed4;
 
 export interface OnChainChallenge {
