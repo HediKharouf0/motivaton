@@ -403,3 +403,23 @@ Key files:
 Follow-up gaps:
 - The dual-inspector path still depends on backend environment configuration for at least one external provider plus optional Cocoon support.
 - The richer GitHub evidence is strongest for repositories where commit detail lookups are accessible from the linked token and event payload.
+
+### 2026-03-22 - GitHub Inspection Now Sees Commit Content
+
+Summary:
+- Extended the GitHub achievement inspection path so recent commit evidence can now include changed filenames and patch snippets from the GitHub commit API, not just event counts and short commit messages.
+- Added an extra heuristic block for commit bursts that expose no meaningful visible content while still looking low-signal.
+- Expanded the GitHub OAuth scope from `read:user` to `read:user repo` so linked accounts can provide the repo access needed for stronger commit-content inspection.
+
+Why it matters now:
+- The AI inspection layer now has materially better evidence for deciding whether a commit looks empty, trivial, or suspicious instead of trying to arbitrate from near-contentless event metadata.
+- Empty or bullshit commit tests now have a better chance of being blocked for the right reason rather than silently counting as normal progress.
+
+Key files:
+- `apps/backend/src/cocoon.ts`
+- `apps/backend/src/routes/auth.ts`
+- `AGENTS.md`
+
+Follow-up gaps:
+- Existing GitHub-linked users may need to disconnect and reconnect GitHub before the broader scope is available on their stored token.
+- Progress counting in the cron job is still event-driven first; this improves veto quality, but a stricter pre-count content gate would be a separate change.
