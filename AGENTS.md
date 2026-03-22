@@ -465,3 +465,108 @@ Key files:
 Follow-up gaps:
 - Existing GitHub tokens may still need reconnecting to maximize inspectability on private or repo-scoped work.
 - Abstaining on unreadable commits reduces false positives, but it also means some commits can still pass without deep content inspection if GitHub does not expose enough data.
+
+### 2026-03-22 - Smart Contract ClaimAll And Auto-Claim Pipeline
+
+Summary:
+- Replaced the per-checkpoint `ClaimCheckpoint` contract message with a batch `ClaimAll` message that claims all earned checkpoints in a single transaction.
+- Added an `owner` (operator) role to the contract so the backend wallet can claim on behalf of any beneficiary.
+- Built an `autoclaim.ts` module that detects completed challenges and sends `ClaimAll` transactions using the `WALLET_MNEMONIC` wallet, with on-chain confirmation polling.
+- Shared the challenge list between the cron progress job and autoclaim to halve RPC calls.
+
+Why it matters now:
+- Beneficiaries no longer pay N × 0.05 TON gas for N checkpoints — one transaction, one gas fee.
+- Rewards are claimed automatically without user intervention once progress meets the target.
+- The contract is immutable on TON, so each code change requires a new deployment with an incremented nonce.
+
+Key files:
+- `contracts/productivity-escrow/src/productivity_escrow.tact`
+- `contracts/productivity-escrow/scripts/deploy.ts`
+- `apps/backend/src/autoclaim.ts`
+- `apps/backend/src/signer.ts`
+- `apps/backend/src/routes/verify.ts`
+- `apps/miniapp/src/contract.ts`
+- `apps/miniapp/src/pages/ChallengeDetail.tsx`
+- `apps/miniapp/src/api.ts`
+
+Follow-up gaps:
+- Telegram Wallet app rejects transactions during testnet emulation lag; Tonkeeper works reliably.
+- The contract nonce must be incremented and redeployed for each code change.
+
+### 2026-03-22 - Multi-Platform Integration (LeetCode, Chess.com, Strava)
+
+Summary:
+- Added LeetCode integration using the public GraphQL API: `SOLVE_PROBLEM`, `SOLVE_EASY`, `SOLVE_MEDIUM`, `SOLVE_HARD`, `MAINTAIN_STREAK` actions.
+- Added Chess.com integration using the public API: `PLAY_GAME`, `WIN_GAME`, `WIN_RAPID`, `WIN_BLITZ`, `WIN_BULLET` actions.
+- Added Strava integration using OAuth: `LOG_ACTIVITY`, `RUN`, `RIDE`, `SWIM`, `WALK`, `LOG_KM` actions.
+- LeetCode and Chess.com use username-based linking (no OAuth). Strava uses full OAuth with token refresh.
+- Each integration follows the same pattern: API client module, verifier, store credentials, auth routes, cron polling, frontend enums and connection UI.
+
+Why it matters now:
+- The product supports four distinct productivity platforms instead of GitHub-only.
+- Adding future integrations follows the established pattern across store, auth, cron, verifier, and frontend enum layers.
+
+Key files:
+- `apps/backend/src/leetcode.ts`, `apps/backend/src/chesscom.ts`, `apps/backend/src/strava.ts`
+- `apps/backend/src/verifiers/leetcode.ts`, `apps/backend/src/verifiers/chesscom.ts`, `apps/backend/src/verifiers/strava.ts`
+- `apps/backend/src/store.ts` (account columns, migrations)
+- `apps/backend/src/routes/auth.ts` (connect/disconnect routes per platform)
+- `apps/backend/src/cron.ts` (per-platform polling sections)
+- `apps/miniapp/src/types/challenge.ts` (App/Action enums)
+- `apps/miniapp/src/api.ts`, `apps/miniapp/src/pages/ChallengeDetail.tsx`
+
+Follow-up gaps:
+- Strava requires `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` env vars.
+- LeetCode difficulty lookups are cached in-memory only and reset on deploy.
+
+### 2026-03-22 - DB-Driven Challenge Status And Claimed Tracking
+
+Summary:
+- Removed all frontend dependency on the on-chain `challenge.active` flag for UI state.
+- Added a `challenge_claims` table in the backend DB, with `markChallengeClaimed` called after successful auto-claim transactions.
+- Challenge status is now derived from backend progress, the DB claimed flag, and the on-chain deadline — not from the contract's `active` boolean.
+- Added `getAllClaimed` to the progress API so the frontend cache tracks claimed state per challenge.
+
+Why it matters now:
+- The UI immediately reflects completion and hides claim/fund sections without waiting for on-chain state propagation.
+- The claim button, funding section, and status pill all respond to the DB flag instead of lagging behind chain indexing.
+
+Key files:
+- `apps/backend/src/store.ts` (`challenge_claims` table, `markChallengeClaimed`, `isChallengeClaimed`, `getAllClaimed`, `clearChallengeClaimed`)
+- `apps/backend/src/routes/debug.ts` (progress endpoint includes claimed flag)
+- `apps/miniapp/src/challenge-cache.tsx` (`claimedMap`)
+- `apps/miniapp/src/pages/Home.tsx`, `apps/miniapp/src/pages/ChallengeDetail.tsx`
+
+Follow-up gaps:
+- Stale claim entries are reconciled by checking on-chain `claimedCount` on each autoclaim run.
+
+### 2026-03-22 - Telegram Bot With Group Tracking And Notifications
+
+Summary:
+- Added a Telegram bot (`bot.ts`) with webhook-based updates, `/start` for private chats, and `/track <number>` for group chats.
+- The bot registers its webhook, commands, and menu button on startup via `setupWebhook`.
+- Group tracking: `/track` in a group prompts for a challenge number, then links the group to that challenge via the `challenge_groups` table.
+- Notification types sent to linked groups: new checkpoint progress, 25/50/75% milestones, 24h deadline warning, 24h inactivity warning, daily trash talk when behind schedule, and claim completion.
+- DM notifications sent to the beneficiary on auto-claim via `telegram_chat_id` stored per wallet.
+- Chat ID registration happens automatically when the miniapp loads inside Telegram (`initDataUnsafe.user.id`).
+
+Why it matters now:
+- Challenges can be socially tracked in Telegram groups with live updates, peer pressure, and celebration messages.
+- Beneficiaries receive push notifications on claim without checking the app.
+- The bot serves as the entry point to the miniapp via the "Open App" menu button.
+
+Key files:
+- `apps/backend/src/bot.ts`
+- `apps/backend/src/telegram.ts`
+- `apps/backend/src/group-notifications.ts`
+- `apps/backend/src/autoclaim.ts` (DM + group notifications on claim)
+- `apps/backend/src/cron.ts` (group notifications on progress, `groupNotificationJob` call)
+- `apps/backend/src/store.ts` (`challenge_groups`, `challenge_notifications`, `telegram_chat_id`)
+- `apps/backend/src/index.ts` (webhook route, `setupWebhook` on startup)
+- `apps/miniapp/src/pages/Home.tsx` (chat ID registration)
+- `apps/miniapp/src/pages/ChallengeDetail.tsx` ("Add bot to group" button)
+
+Follow-up gaps:
+- Requires `TELEGRAM_BOT_TOKEN` env var. Optional `VITE_BOT_USERNAME` for the share link (defaults to `MotivaTON_bot`).
+- Telegram push notifications only work if the user has started a conversation with the bot first.
+- The `/track` conversational flow uses an in-memory pending map that resets on deploy.
