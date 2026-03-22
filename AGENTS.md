@@ -423,3 +423,26 @@ Key files:
 Follow-up gaps:
 - Existing GitHub-linked users may need to disconnect and reconnect GitHub before the broader scope is available on their stored token.
 - Progress counting in the cron job is still event-driven first; this improves veto quality, but a stricter pre-count content gate would be a separate change.
+
+### 2026-03-22 - Progress Filtering Now Happens Before Credit
+
+Summary:
+- Reworked the GitHub and Strava progress pipeline so raw commit and activity events are filtered before they are written into challenge progress, instead of only being checked later at claim time.
+- GitHub commit counting now operates at commit-level IDs rather than opaque push-level bundle counts, and each commit must be readable enough to inspect changed files or diff content before it can earn progress.
+- Strava progress now filters out manual, too-small, and clearly unrealistic activities before they can increment challenge progress, while keeping “not readable yet” distinct from “bullshit” on the GitHub side.
+
+Why it matters now:
+- Empty commits and spammy activities have a much harder path to becoming earned checkpoints because the quality gate now sits upstream of stored progress.
+- The product now treats unreadable GitHub commits as pending access/inspection problems instead of falsely calling them fake, which is safer for legitimate users and better aligned with the intended anti-bullshit model.
+
+Key files:
+- `apps/backend/src/cron.ts`
+- `apps/backend/src/cocoon.ts`
+- `apps/backend/src/events.ts`
+- `apps/backend/src/strava.ts`
+- `apps/backend/src/routes/auth.ts`
+- `AGENTS.md`
+
+Follow-up gaps:
+- Existing GitHub-linked users may still need to reconnect GitHub so the broader repo-reading scope is present on their stored token.
+- Private or otherwise unreadable GitHub commits can now be skipped from progress until the backend has enough access to inspect them properly.

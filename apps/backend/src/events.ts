@@ -29,10 +29,13 @@ function extractActions(event: GitHubEvent): ActionEntries[] {
 
   switch (event.type) {
     case "PushEvent": {
-      const commits = payload.commits as { sha: string }[] | undefined;
+      const commits = payload.commits as { sha?: string }[] | undefined;
       if (commits?.length) {
-        // Public repo: commits array available, use hash + actual count
-        results.push({ action: "COMMIT", entries: [{ id: hashPayload(payload), count: commits.length }] });
+        const entries = commits.map((commit, index) => ({
+          id: commit.sha || `${event.id}:${index}`,
+          count: 1,
+        }));
+        results.push({ action: "COMMIT", entries });
       } else {
         // Private repo: no commits array, use hash + 1
         results.push({ action: "COMMIT", entries: [{ id: hashPayload(payload), count: 1 }] });

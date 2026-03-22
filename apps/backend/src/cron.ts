@@ -5,11 +5,12 @@ import { getAllAccounts, addChallengeEvents, getChallengeProgress, isChallengeCl
 import { fetchUserEvents, extractEvents } from "./events.js";
 import { fetchRecentAcceptedSubmissions, extractLeetCodeEvents, fetchUserStreak } from "./leetcode.js";
 import { fetchRecentGames, extractChessComEvents } from "./chesscom.js";
-import { fetchStravaActivities, extractStravaEvents, refreshStravaTokens } from "./strava.js";
+import { fetchStravaActivities, refreshStravaTokens } from "./strava.js";
 import { autoClaimJob } from "./autoclaim.js";
 import { groupNotificationJob } from "./group-notifications.js";
 import { getChallengeGroups } from "./store.js";
 import { sendToGroups, formatNewCheckpoint } from "./telegram.js";
+import { filterGitHubCommitEntriesForProgress, filterStravaEntriesForProgress } from "./cocoon.js";
 
 function normalizeAddress(addr: string): string {
   try {
@@ -113,7 +114,20 @@ async function eventsProgressJob(): Promise<(OnChainChallenge & { index: number 
         const action = c.challengeId.split(":")[1];
         const since = new Date((c.createdAt + 60) * 1000);
         const filtered = extractEvents(allEvents, since);
-        const entries = filtered[action] ?? [];
+        let entries = filtered[action] ?? [];
+
+        if (action === "COMMIT") {
+          const verdict = await filterGitHubCommitEntriesForProgress({
+            challenge: c,
+            events: allEvents,
+            token: token!,
+          });
+          entries = verdict.approvedEntries;
+
+          for (const blocked of verdict.blockedEntries) {
+            console.log(`[cron] [GITHUB] #${c.index}: skipped ${blocked.id} (${blocked.reason})`);
+          }
+        }
 
         if (entries.length > 0) {
           const newEntries = addChallengeEvents(c.index, entries);
@@ -269,9 +283,15 @@ async function eventsProgressJob(): Promise<(OnChainChallenge & { index: number 
 
       for (const c of userChallenges) {
         const action = c.challengeId.split(":")[1];
-        const since = new Date((c.createdAt + 60) * 1000);
-        const eventsByAction = extractStravaEvents(activities, since);
-        const entries = eventsByAction[action] ?? [];
+        const verdict = await filterStravaEntriesForProgress({
+          challenge: c,
+          activities,
+        });
+        const entries = verdict.approvedEntries;
+
+        for (const blocked of verdict.blockedEntries) {
+          console.log(`[cron] [STRAVA] #${c.index}: skipped ${blocked.id} (${blocked.reason})`);
+        }
 
         if (entries.length > 0) {
           const newEntries = addChallengeEvents(c.index, entries);

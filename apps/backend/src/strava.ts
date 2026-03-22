@@ -10,7 +10,7 @@ export interface StravaTokens {
   athleteId: number;
 }
 
-interface StravaActivity {
+export interface StravaActivity {
   id: number;
   name: string;
   type: string;
@@ -18,6 +18,8 @@ interface StravaActivity {
   start_date: string;
   distance: number;
   moving_time: number;
+  elapsed_time?: number;
+  manual?: boolean;
 }
 
 export async function exchangeStravaCode(code: string): Promise<StravaTokens & { athlete: { id: number; username: string | null; firstname: string; lastname: string } }> {

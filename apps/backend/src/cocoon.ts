@@ -1,8 +1,8 @@
 import { Address } from "@ton/core";
 import type { OnChainChallenge } from "./chain.js";
 import { fetchUserEvents, type GitHubEvent } from "./events.js";
-import { fetchStravaActivities, refreshStravaTokens } from "./strava.js";
-import { getAllAccounts, setAccount, type AppCredentials } from "./store.js";
+import { fetchStravaActivities, refreshStravaTokens, type StravaActivity } from "./strava.js";
+import { getAllAccounts, setAccount, type AppCredentials, type EventEntry } from "./store.js";
 
 type InspectionProvider = "OPENAI" | "ANTHROPIC" | "DEEPSEEK" | "COCOON" | "HEURISTIC";
 type RemoteInspectionProvider = Exclude<InspectionProvider, "HEURISTIC">;
@@ -42,6 +42,13 @@ interface StravaEvidenceItem {
   startDate: string;
   distanceKm: number;
   movingMinutes: number;
+  elapsedMinutes?: number;
+  manual?: boolean;
+}
+
+interface ProgressFilterResult {
+  approvedEntries: EventEntry[];
+  blockedEntries: Array<{ id: string; reason: string }>;
 }
 
 type Decision = {
@@ -275,7 +282,8 @@ async function fetchGitHubCommitDetail(
   sha: string,
   token: string,
 ): Promise<GitHubCommitDetail | null> {
-  const resp = await fetch(`${GITHUB_API}/repos/${repo}/commits/${sha}`, {
+  const requestUrl = `${GITHUB_API}/repos/${repo}/commits/${sha}`;
+  let resp = await fetch(requestUrl, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/vnd.github+json",
@@ -284,8 +292,16 @@ async function fetchGitHubCommitDetail(
   });
 
   if (!resp.ok) {
-    return null;
+    // Public repositories can still be inspected without the OAuth token.
+    resp = await fetch(requestUrl, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
   }
+
+  if (!resp.ok) return null;
 
   const data = (await resp.json()) as {
     sha?: string;
@@ -446,14 +462,7 @@ async function extractGitHubEvidence(
 }
 
 function extractStravaEvidence(
-  activities: Array<{
-    name: string;
-    type: string;
-    sport_type: string;
-    start_date: string;
-    distance: number;
-    moving_time: number;
-  }>,
+  activities: StravaActivity[],
   action: string,
   since: Date,
 ): StravaEvidenceItem[] {
@@ -474,6 +483,9 @@ function extractStravaEvidence(
       startDate: activity.start_date,
       distanceKm: Math.round((activity.distance / 1000) * 100) / 100,
       movingMinutes: Math.round((activity.moving_time / 60) * 10) / 10,
+      elapsedMinutes:
+        typeof activity.elapsed_time === "number" ? Math.round((activity.elapsed_time / 60) * 10) / 10 : undefined,
+      manual: activity.manual === true,
     }))
     .sort((left, right) => new Date(right.startDate).getTime() - new Date(left.startDate).getTime());
 
@@ -525,6 +537,29 @@ function heuristicGitHubBlock(evidence: GitHubEvidenceItem[]): AchievementInspec
   return null;
 }
 
+function heuristicSingleGitHubCommitBlock(detail: GitHubCommitDetail | null): AchievementInspection | null {
+  if (!detail) return null;
+
+  const totalDiff = (detail.additions ?? 0) + (detail.deletions ?? 0);
+  if (totalDiff === 0 && (detail.changedFiles ?? 0) === 0) {
+    return block("HEURISTIC", "Empty commit", "This commit shows no changed files or diff.");
+  }
+
+  const lowSignalMessage = isLowSignalText(detail.message);
+  const hasVisibleContent =
+    (detail.files?.length || 0) > 0 || (detail.patchSnippets?.length || 0) > 0 || totalDiff > 0;
+
+  if (!hasVisibleContent) {
+    return block("HEURISTIC", "No useful commit content", "This commit exposes no useful code change content.");
+  }
+
+  if (totalDiff <= 2 && (detail.changedFiles ?? 0) <= 1 && lowSignalMessage) {
+    return block("HEURISTIC", "Commit looks empty", "This commit looks tiny and low-signal.");
+  }
+
+  return null;
+}
+
 function getStravaMinimums(action: string) {
   switch (action) {
     case "RIDE":
@@ -552,6 +587,44 @@ function heuristicStravaBlock(action: string, evidence: StravaEvidenceItem[]): A
 
   if (!hasMeaningfulActivity) {
     return block("HEURISTIC", "Activity too small", "Recent Strava activity is too small to count.");
+  }
+
+  return null;
+}
+
+function heuristicSingleStravaBlock(action: string, evidence: StravaEvidenceItem): AchievementInspection | null {
+  const minimums = getStravaMinimums(action);
+
+  if (evidence.manual) {
+    return block("HEURISTIC", "Manual activity blocked", "Manual Strava activities do not count.");
+  }
+
+  if (evidence.distanceKm < minimums.distanceKm || evidence.movingMinutes < minimums.movingMinutes) {
+    return block("HEURISTIC", "Activity too small", "This activity is too small to count.");
+  }
+
+  if (evidence.elapsedMinutes && evidence.movingMinutes > 0) {
+    const movingRatio = evidence.movingMinutes / evidence.elapsedMinutes;
+    if (movingRatio < 0.15) {
+      return block("HEURISTIC", "Too little moving time", "This activity has too little moving time to count.");
+    }
+  }
+
+  const hours = evidence.movingMinutes / 60;
+  if (hours > 0) {
+    const speed = evidence.distanceKm / hours;
+    if (action === "RUN" && speed > 35) {
+      return block("HEURISTIC", "Run speed unrealistic", "This run speed looks unrealistic.");
+    }
+    if (action === "WALK" && speed > 9) {
+      return block("HEURISTIC", "Walk speed unrealistic", "This walk speed looks unrealistic.");
+    }
+    if (action === "RIDE" && speed > 80) {
+      return block("HEURISTIC", "Ride speed unrealistic", "This ride speed looks unrealistic.");
+    }
+    if (action === "SWIM" && speed > 8) {
+      return block("HEURISTIC", "Swim speed unrealistic", "This swim speed looks unrealistic.");
+    }
   }
 
   return null;
@@ -824,6 +897,132 @@ async function runRemoteInspectors(payload: Record<string, unknown>): Promise<Ac
     shortReason: preferred.shortReason,
     summary: `${blocked.map((item) => item.provider).join(" + ")} flagged this achievement.`,
   };
+}
+
+function buildSingleGitHubCommitEvidence(
+  repo: string,
+  createdAt: string,
+  detail: GitHubCommitDetail,
+): GitHubEvidenceItem[] {
+  return [
+    {
+      kind: "commit",
+      repo,
+      createdAt,
+      commitCount: 1,
+      commitMessages: detail.message ? [detail.message] : [],
+      commitDetails: [detail],
+    },
+  ];
+}
+
+function buildSingleStravaEvidence(activity: StravaActivity): StravaEvidenceItem {
+  return {
+    name: compactText(activity.name, 90) || "Untitled activity",
+    type: activity.sport_type || activity.type || "Activity",
+    startDate: activity.start_date,
+    distanceKm: Math.round((activity.distance / 1000) * 100) / 100,
+    movingMinutes: Math.round((activity.moving_time / 60) * 10) / 10,
+    elapsedMinutes:
+      typeof activity.elapsed_time === "number" ? Math.round((activity.elapsed_time / 60) * 10) / 10 : undefined,
+    manual: activity.manual === true,
+  };
+}
+
+export async function filterGitHubCommitEntriesForProgress(params: {
+  challenge: OnChainChallenge;
+  events: GitHubEvent[];
+  token: string;
+}): Promise<ProgressFilterResult> {
+  const { challenge, events, token } = params;
+  const since = new Date((challenge.createdAt + 60) * 1000);
+  const approvedEntries: EventEntry[] = [];
+  const blockedEntries: Array<{ id: string; reason: string }> = [];
+
+  for (const rawEvent of events) {
+    const event = rawEvent as GitHubEvent & {
+      repo?: { name?: string };
+      payload: Record<string, unknown> & {
+        commits?: Array<{ sha?: string; message?: string }>;
+      };
+    };
+
+    if (event.type !== "PushEvent" || new Date(event.created_at) < since) continue;
+
+    const repo = event.repo?.name || "";
+    const commits = Array.isArray(event.payload.commits) ? event.payload.commits : [];
+    for (const [index, commit] of commits.entries()) {
+      const entryId = compactText(commit.sha, 64) || `${event.id}:${index}`;
+      const detail =
+        repo && commit.sha ? await fetchGitHubCommitDetail(repo, commit.sha, token).catch(() => null) : null;
+      if (!detail) {
+        blockedEntries.push({ id: entryId, reason: "Commit not readable yet" });
+        continue;
+      }
+
+      const heuristicBlock = heuristicSingleGitHubCommitBlock(detail);
+      if (heuristicBlock) {
+        blockedEntries.push({ id: entryId, reason: heuristicBlock.shortReason });
+        continue;
+      }
+
+      const evidence = buildSingleGitHubCommitEvidence(repo || "Unknown repo", event.created_at, detail);
+      const inspection = await runRemoteInspectors(buildInspectionPayload("GitHub", "COMMIT", challenge, evidence));
+      if (inspection) {
+        blockedEntries.push({ id: entryId, reason: inspection.shortReason });
+        continue;
+      }
+
+      approvedEntries.push({ id: entryId, count: 1 });
+    }
+  }
+
+  return { approvedEntries, blockedEntries };
+}
+
+export async function filterStravaEntriesForProgress(params: {
+  challenge: OnChainChallenge;
+  activities: StravaActivity[];
+}): Promise<ProgressFilterResult> {
+  const { challenge, activities } = params;
+  const { action } = getChallengeParts(challenge);
+  const since = new Date((challenge.createdAt + 60) * 1000);
+  const approvedEntries: EventEntry[] = [];
+  const blockedEntries: Array<{ id: string; reason: string }> = [];
+
+  for (const activity of activities) {
+    if (new Date(activity.start_date) < since) continue;
+
+    const type = (activity.sport_type || activity.type || "").toLowerCase();
+    if (action === "RUN" && type !== "run") continue;
+    if (action === "RIDE" && type !== "ride" && type !== "virtualride") continue;
+    if (action === "SWIM" && type !== "swim") continue;
+    if (action === "WALK" && type !== "walk" && type !== "hike") continue;
+
+    const evidence = buildSingleStravaEvidence(activity);
+    const heuristicBlock = heuristicSingleStravaBlock(action, evidence);
+    if (heuristicBlock) {
+      blockedEntries.push({ id: String(activity.id), reason: heuristicBlock.shortReason });
+      continue;
+    }
+
+    const inspection = await runRemoteInspectors(buildInspectionPayload("Strava", action, challenge, [evidence]));
+    if (inspection) {
+      blockedEntries.push({ id: String(activity.id), reason: inspection.shortReason });
+      continue;
+    }
+
+    const count =
+      action === "LOG_KM" ? Math.floor(evidence.distanceKm) : 1;
+    if (count <= 0) {
+      blockedEntries.push({ id: String(activity.id), reason: "Distance too small" });
+      continue;
+    }
+
+    approvedEntries.push({ id: String(activity.id), count });
+  }
+
+  return { approvedEntries, blockedEntries };
 }
 
 async function inspectGitHubAchievement(challenge: OnChainChallenge): Promise<AchievementInspection | null> {
