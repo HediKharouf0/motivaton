@@ -7,6 +7,9 @@ import { fetchRecentAcceptedSubmissions, extractLeetCodeEvents, fetchUserStreak 
 import { fetchRecentGames, extractChessComEvents } from "./chesscom.js";
 import { fetchStravaActivities, extractStravaEvents, refreshStravaTokens } from "./strava.js";
 import { autoClaimJob } from "./autoclaim.js";
+import { groupNotificationJob } from "./group-notifications.js";
+import { getChallengeGroups } from "./store.js";
+import { sendToGroups, formatNewCheckpoint } from "./telegram.js";
 
 function normalizeAddress(addr: string): string {
   try {
@@ -125,6 +128,17 @@ async function eventsProgressJob(): Promise<(OnChainChallenge & { index: number 
             });
             const timestamps = matchedEvents.map((e) => e.created_at).join(", ");
             console.log(`[cron] [GITHUB] #${c.index}: +${totalNew} ${action} → ${newProgress}/${c.totalCheckpoints} since=${since.toISOString()} events=[${timestamps}]`);
+
+            const groups = getChallengeGroups(c.index);
+            if (groups.length > 0) {
+              await sendToGroups(groups, formatNewCheckpoint({
+                challengeIdx: c.index,
+                progress: newProgress,
+                totalCheckpoints: c.totalCheckpoints,
+                action,
+                count: totalNew,
+              }));
+            }
           }
         }
       }
@@ -162,6 +176,10 @@ async function eventsProgressJob(): Promise<(OnChainChallenge & { index: number 
             if (newEntries.length > 0) {
               const newProgress = getChallengeProgress(c.index);
               console.log(`[cron] [LEETCODE] #${c.index}: streak → ${newProgress}/${c.totalCheckpoints}`);
+              const groups = getChallengeGroups(c.index);
+              if (groups.length > 0) {
+                await sendToGroups(groups, formatNewCheckpoint({ challengeIdx: c.index, progress: newProgress, totalCheckpoints: c.totalCheckpoints, action, count: newProgress - (newProgress - (streak - currentProgress)) }));
+              }
             }
           }
           continue;
@@ -176,6 +194,10 @@ async function eventsProgressJob(): Promise<(OnChainChallenge & { index: number 
           if (totalNew > 0) {
             const newProgress = getChallengeProgress(c.index);
             console.log(`[cron] [LEETCODE] #${c.index}: +${totalNew} ${action} → ${newProgress}/${c.totalCheckpoints}`);
+            const groups = getChallengeGroups(c.index);
+            if (groups.length > 0) {
+              await sendToGroups(groups, formatNewCheckpoint({ challengeIdx: c.index, progress: newProgress, totalCheckpoints: c.totalCheckpoints, action, count: totalNew }));
+            }
           }
         }
       }
@@ -207,6 +229,10 @@ async function eventsProgressJob(): Promise<(OnChainChallenge & { index: number 
           if (totalNew > 0) {
             const newProgress = getChallengeProgress(c.index);
             console.log(`[cron] [CHESSCOM] #${c.index}: +${totalNew} ${action} → ${newProgress}/${c.totalCheckpoints}`);
+            const groups = getChallengeGroups(c.index);
+            if (groups.length > 0) {
+              await sendToGroups(groups, formatNewCheckpoint({ challengeIdx: c.index, progress: newProgress, totalCheckpoints: c.totalCheckpoints, action, count: totalNew }));
+            }
           }
         }
       }
@@ -253,6 +279,10 @@ async function eventsProgressJob(): Promise<(OnChainChallenge & { index: number 
           if (totalNew > 0) {
             const newProgress = getChallengeProgress(c.index);
             console.log(`[cron] [STRAVA] #${c.index}: +${totalNew} ${action} → ${newProgress}/${c.totalCheckpoints}`);
+            const groups = getChallengeGroups(c.index);
+            if (groups.length > 0) {
+              await sendToGroups(groups, formatNewCheckpoint({ challengeIdx: c.index, progress: newProgress, totalCheckpoints: c.totalCheckpoints, action, count: totalNew }));
+            }
           }
         }
       }
@@ -268,6 +298,7 @@ async function minuteJob() {
   const challenges = await eventsProgressJob();
   if (challenges) {
     await autoClaimJob(challenges);
+    await groupNotificationJob(challenges);
   }
 }
 

@@ -53,6 +53,19 @@ function getDb(): Database.Database {
       challenge_idx INTEGER PRIMARY KEY,
       claimed_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS challenge_groups (
+      challenge_idx INTEGER NOT NULL,
+      chat_id TEXT NOT NULL,
+      PRIMARY KEY (challenge_idx, chat_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS challenge_notifications (
+      challenge_idx INTEGER NOT NULL,
+      notification_type TEXT NOT NULL,
+      sent_at INTEGER NOT NULL,
+      PRIMARY KEY (challenge_idx, notification_type)
+    );
   `);
 
   // Migrations
@@ -318,4 +331,26 @@ export function getTelegramChatIdByBeneficiary(beneficiaryRaw: string): string |
     } catch {}
   }
   return null;
+}
+
+// -- Challenge group chats --
+
+export function addChallengeGroup(challengeIdx: number, chatId: string) {
+  db().prepare("INSERT OR IGNORE INTO challenge_groups (challenge_idx, chat_id) VALUES (?, ?)").run(challengeIdx, chatId);
+}
+
+export function getChallengeGroups(challengeIdx: number): string[] {
+  const rows = db().prepare("SELECT chat_id FROM challenge_groups WHERE challenge_idx = ?").all(challengeIdx) as { chat_id: string }[];
+  return rows.map((r) => r.chat_id);
+}
+
+// -- Challenge notification tracking --
+
+export function hasNotificationBeenSent(challengeIdx: number, type: string): boolean {
+  const row = db().prepare("SELECT 1 FROM challenge_notifications WHERE challenge_idx = ? AND notification_type = ?").get(challengeIdx, type);
+  return row != null;
+}
+
+export function markNotificationSent(challengeIdx: number, type: string) {
+  db().prepare("INSERT OR IGNORE INTO challenge_notifications (challenge_idx, notification_type, sent_at) VALUES (?, ?, ?)").run(challengeIdx, type, Date.now());
 }

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { randomBytes } from "crypto";
-import { setAccount, getAccount, removeAccountApp, setTelegramChatId } from "../store.js";
+import { setAccount, getAccount, removeAccountApp, setTelegramChatId, getTelegramChatId } from "../store.js";
 import { verifyGitHubToken } from "../github.js";
 import { verifyLeetCodeUsername } from "../leetcode.js";
 import { verifyChessComUsername } from "../chesscom.js";
@@ -128,6 +128,7 @@ authRouter.get("/status", (req, res) => {
     leetcode: account?.leetcode ? { connected: true, username: account.leetcode.username } : { connected: false },
     chesscom: account?.chesscom ? { connected: true, username: account.chesscom.username } : { connected: false },
     strava: account?.strava ? { connected: true, username: String(account.strava.athleteId) } : { connected: false },
+    telegram: { registered: !!getTelegramChatId(wallet) },
   });
 });
 

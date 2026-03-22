@@ -2,9 +2,9 @@ import { beginCell, Address, toNano, internal, SendMode } from "@ton/core";
 import { TonClient, WalletContractV5R1 } from "@ton/ton";
 import { mnemonicToPrivateKey } from "@ton/crypto";
 import type { OnChainChallenge } from "./chain.js";
-import { getChallengeProgress, isChallengeClaimed, markChallengeClaimed, clearChallengeClaimed, getTelegramChatIdByBeneficiary } from "./store.js";
+import { getChallengeProgress, isChallengeClaimed, markChallengeClaimed, clearChallengeClaimed, getTelegramChatIdByBeneficiary, getChallengeGroups } from "./store.js";
 import { signClaimAllProof } from "./signer.js";
-import { sendTelegramMessage, formatClaimNotification } from "./telegram.js";
+import { sendTelegramMessage, sendToGroups, formatClaimNotification, formatGroupClaimMessage } from "./telegram.js";
 
 const OP_CLAIM_ALL = 0xf9dddb36;
 
@@ -121,13 +121,14 @@ export async function autoClaimJob(challenges: (OnChainChallenge & { index: numb
         markChallengeClaimed(c.index);
         console.log(`[autoclaim] #${c.index}: CLAIMED ${earnedCount}/${c.totalCheckpoints} checkpoints for ${c.beneficiary}`);
 
-        // Send Telegram notification
+        const [app, action] = c.challengeId.split(":");
+        const newCheckpoints = earnedCount - c.claimedCount;
+        const payoutTon = (newCheckpoints * Number(c.amountPerCheckpoint)) / 1e9;
+
+        // Send Telegram DM notification
         const beneficiaryRaw = beneficiary.toRawString();
         const chatId = getTelegramChatIdByBeneficiary(beneficiaryRaw);
         if (chatId) {
-          const [app, action] = c.challengeId.split(":");
-          const newCheckpoints = earnedCount - c.claimedCount;
-          const payoutTon = (newCheckpoints * Number(c.amountPerCheckpoint)) / 1e9;
           const sent = await sendTelegramMessage(chatId, formatClaimNotification({
             challengeIdx: c.index,
             earnedCount,
@@ -137,8 +138,18 @@ export async function autoClaimJob(challenges: (OnChainChallenge & { index: numb
             action,
           }));
           console.log(`[autoclaim] Telegram notification to ${chatId}: ${sent ? "sent" : "failed"}`);
-        } else {
-          console.log(`[autoclaim] No telegram chat ID for beneficiary, skipping notification`);
+        }
+
+        // Notify linked groups
+        const groups = getChallengeGroups(c.index);
+        if (groups.length > 0) {
+          await sendToGroups(groups, formatGroupClaimMessage({
+            challengeIdx: c.index,
+            totalCheckpoints: c.totalCheckpoints,
+            payoutTon,
+            app,
+            action,
+          }));
         }
       } else {
         console.warn(`[autoclaim] #${c.index}: tx sent but confirmation timed out`);

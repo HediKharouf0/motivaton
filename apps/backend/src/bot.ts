@@ -1,3 +1,7 @@
+import { addChallengeGroup, getChallengeGroups } from "./store.js";
+import { getChallenge } from "./chain.js";
+import { sendTelegramMessage, formatGroupIntro } from "./telegram.js";
+
 const TELEGRAM_API = "https://api.telegram.org";
 
 function getBotToken(): string | null {
@@ -26,20 +30,20 @@ async function botApi(method: string, body: Record<string, unknown>): Promise<an
 
 export async function handleBotUpdate(update: any): Promise<void> {
   const message = update.message;
-  if (!message?.text) return;
+  if (!message) return;
 
-  const chatId = message.chat.id;
-  const text = message.text.trim();
+  const chatId = String(message.chat.id);
+  const chatType = message.chat.type; // "private", "group", "supergroup"
+  const text = (message.text || "").trim();
 
-  if (text === "/start" || text.startsWith("/start ")) {
-    // Extract wallet address from deep link if present: /start wallet_<address>
+  // Handle /start in private chat
+  if (chatType === "private" && (text === "/start" || text.startsWith("/start "))) {
     const param = text.split(" ")[1] || "";
     const walletAddress = param.startsWith("wallet_") ? param.slice(7) : null;
 
     if (walletAddress) {
-      // Auto-register chat ID with wallet
       const { setTelegramChatId } = await import("./store.js");
-      setTelegramChatId(walletAddress, String(chatId));
+      setTelegramChatId(walletAddress, chatId);
       console.log(`[bot] Registered chatId=${chatId} for wallet ${walletAddress.slice(0, 12)}... via /start deep link`);
     }
 
@@ -59,6 +63,61 @@ export async function handleBotUpdate(update: any): Promise<void> {
     });
     return;
   }
+
+  // Handle /start in group chat — link challenge to group
+  if ((chatType === "group" || chatType === "supergroup") && (text === "/start" || text.startsWith("/start "))) {
+    const param = text.split(" ")[1] || "";
+    const challengeIdx = param.startsWith("challenge_") ? parseInt(param.slice(10), 10) : NaN;
+
+    if (!isNaN(challengeIdx)) {
+      try {
+        const challenge = await getChallenge(challengeIdx);
+        if (challenge) {
+          addChallengeGroup(challengeIdx, chatId);
+          const [app, action] = challenge.challengeId.split(":");
+          const endDate = new Date(challenge.endDate * 1000).toLocaleDateString();
+          const tonAmount = Number(challenge.totalDeposit) / 1e9;
+
+          await sendTelegramMessage(chatId, formatGroupIntro({
+            challengeIdx,
+            totalCheckpoints: challenge.totalCheckpoints,
+            app,
+            action,
+            endDate,
+            tonAmount,
+          }));
+          console.log(`[bot] Linked challenge #${challengeIdx} to group ${chatId}`);
+        }
+      } catch (err) {
+        console.error(`[bot] Failed to link challenge #${challengeIdx} to group:`, err);
+      }
+    } else {
+      await botApi("sendMessage", {
+        chat_id: chatId,
+        text: "Add me to a group via a challenge share link to track progress here.",
+      });
+    }
+    return;
+  }
+
+  // Handle bot added to group (no /start command, just added)
+  if (message.new_chat_members) {
+    const botToken = getBotToken();
+    if (!botToken) return;
+    const botInfo = await botApi("getMe", {});
+    const botId = botInfo?.result?.id;
+    const wasAdded = message.new_chat_members.some((m: any) => m.id === botId);
+    if (wasAdded) {
+      await botApi("sendMessage", {
+        chat_id: chatId,
+        text: "I'm Motivaton. Share a challenge link with /start to track it in this group.",
+      });
+    }
+  }
+}
+
+export function getBotUsername(): string | null {
+  return process.env.TELEGRAM_BOT_USERNAME || null;
 }
 
 export async function setupWebhook(): Promise<void> {
@@ -80,14 +139,19 @@ export async function setupWebhook(): Promise<void> {
     console.log(`[bot] Webhook set to ${webhookUrl}`);
   }
 
-  // Register bot commands
+  // Get and store bot username
+  const me = await botApi("getMe", {});
+  if (me?.result?.username) {
+    process.env.TELEGRAM_BOT_USERNAME = me.result.username;
+    console.log(`[bot] Bot username: @${me.result.username}`);
+  }
+
   await botApi("setMyCommands", {
     commands: [
       { command: "start", description: "Open Motivaton" },
     ],
   });
 
-  // Set bot menu button to open the miniapp
   await botApi("setChatMenuButton", {
     menu_button: {
       type: "web_app",

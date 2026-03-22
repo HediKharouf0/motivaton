@@ -958,6 +958,34 @@ export function ChallengeDetail() {
             </section>
           )}
 
+          <section className="panel panel-soft next-panel">
+            <div className="section-kicker">Social</div>
+            <h2 className="section-title">Track in a group</h2>
+            <div className="next-copy">
+              <p className="support-copy tight">
+                Add the bot to a Telegram group to post live progress updates, milestones, and trash talk.
+              </p>
+            </div>
+            <div className="next-actions">
+              <button
+                className="secondary-button"
+                onClick={() => {
+                  const tg = (window as any).Telegram?.WebApp;
+                  const botUsername = import.meta.env.VITE_BOT_USERNAME || "motivaton_bot";
+                  const url = `https://t.me/${botUsername}?startgroup=challenge_${idx}`;
+                  if (tg?.openTelegramLink) {
+                    tg.openTelegramLink(url);
+                  } else {
+                    window.open(url, "_blank");
+                  }
+                }}
+              >
+                <span className="material-symbols-outlined" aria-hidden="true">group_add</span>
+                <span>Share to group</span>
+              </button>
+            </div>
+          </section>
+
           {error && (
             <div className="state-card error">
               <strong>Action failed</strong>
