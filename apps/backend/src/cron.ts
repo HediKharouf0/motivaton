@@ -69,7 +69,7 @@ async function eventsProgressJob(): Promise<(OnChainChallenge & { index: number 
     if (progress >= c.totalCheckpoints) return false;
     return true;
   });
-  if (activeChallenges.length === 0) return;
+  if (activeChallenges.length === 0) return challenges;
 
   const accounts = getAllAccounts();
 

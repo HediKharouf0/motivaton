@@ -187,6 +187,11 @@ export function Home() {
 
   const [statusFilter, setStatusFilter] = useState<ChallengeStatusFilter>("ALL");
   const [appFilter, setAppFilter] = useState<AppFilter>("ALL");
+  const [actionFilter, setActionFilter] = useState<string>("ALL");
+
+  const actionOptions = appFilter !== "ALL" && appFilter in APP_ACTIONS
+    ? [{ value: "ALL", label: "Any action" }, ...APP_ACTIONS[appFilter as App]]
+    : null;
 
   const normalizedUserAddress = userAddress ? normalizeAddress(userAddress) : "";
 
@@ -216,10 +221,9 @@ export function Home() {
 
   function applyFilters(list: IndexedChallenge[]) {
     return list.filter((c) => {
-      if (appFilter !== "ALL") {
-        const app = c.challengeId.split(":")[0];
-        if (app !== appFilter) return false;
-      }
+      const [app, action] = c.challengeId.split(":");
+      if (appFilter !== "ALL" && app !== appFilter) return false;
+      if (actionFilter !== "ALL" && action !== actionFilter) return false;
       if (statusFilter !== "ALL") {
         const status = getChallengeStatusKey(c, progressMap[String(c.index)] || 0, claimedMap[String(c.index)] || false);
         if (status.toUpperCase() !== statusFilter) return false;
@@ -308,12 +312,23 @@ export function Home() {
             <select
               className="filter-select"
               value={appFilter}
-              onChange={(e) => setAppFilter(e.target.value)}
+              onChange={(e) => { setAppFilter(e.target.value); setActionFilter("ALL"); }}
             >
               {APP_FILTER_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>{o.label}</option>
               ))}
             </select>
+            {actionOptions && (
+              <select
+                className="filter-select"
+                value={actionFilter}
+                onChange={(e) => setActionFilter(e.target.value)}
+              >
+                {actionOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            )}
             <select
               className="filter-select"
               value={statusFilter}
