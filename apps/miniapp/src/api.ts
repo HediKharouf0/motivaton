@@ -50,6 +50,7 @@ export interface AuthStatus {
   github: AuthConnection;
   leetcode: AuthConnection;
   chesscom: AuthConnection;
+  strava: AuthConnection;
 }
 
 /** Backend API — verification, signing, and auth */
@@ -114,6 +115,21 @@ export const backendApi = {
 
   disconnectChessCom(walletAddress: string) {
     return request<{ ok: boolean }>("/auth/chesscom/disconnect", {
+      method: "POST",
+      body: JSON.stringify({ walletAddress }),
+    });
+  },
+
+  startStravaOAuth(walletAddress: string, challengeIdx?: number) {
+    const returnPath = challengeIdx != null ? `/challenge/${challengeIdx}` : "/";
+    return request<{ url: string }>("/auth/strava/start", {
+      method: "POST",
+      body: JSON.stringify({ walletAddress, returnPath }),
+    });
+  },
+
+  disconnectStrava(walletAddress: string) {
+    return request<{ ok: boolean }>("/auth/strava/disconnect", {
       method: "POST",
       body: JSON.stringify({ walletAddress }),
     });

@@ -5,6 +5,7 @@ import { getAllAccounts, addChallengeEvents, getChallengeProgress, isChallengeCl
 import { fetchUserEvents, extractEvents } from "./events.js";
 import { fetchRecentAcceptedSubmissions, extractLeetCodeEvents, fetchUserStreak } from "./leetcode.js";
 import { fetchRecentGames, extractChessComEvents } from "./chesscom.js";
+import { fetchStravaActivities, extractStravaEvents, refreshStravaTokens } from "./strava.js";
 
 function normalizeAddress(addr: string): string {
   try {
@@ -42,6 +43,8 @@ function collectAppUsers(
       users.set(normBeneficiary, { wallet: entry[0], username: creds.leetcode.username });
     } else if (app === "CHESSCOM" && creds.chesscom) {
       users.set(normBeneficiary, { wallet: entry[0], username: creds.chesscom.username });
+    } else if (app === "STRAVA" && creds.strava) {
+      users.set(normBeneficiary, { wallet: entry[0], username: String(creds.strava.athleteId), token: creds.strava.accessToken });
     }
   }
 
@@ -223,6 +226,54 @@ async function eventsProgressJob() {
       }
     } catch (err) {
       console.error(`[cron] Failed to fetch Chess.com games for @${username}:`, err);
+    }
+  }
+
+  // --- Strava ---
+  const stravaUsers = collectAppUsers("STRAVA", activeChallenges, accounts);
+
+  for (const [normAddr, { wallet, username, token }] of stravaUsers) {
+    try {
+      // Refresh token if expired
+      const creds = Object.values(accounts).find((_, i) => {
+        const w = Object.keys(accounts)[i];
+        return normalizeAddress(w) === normAddr;
+      });
+      let accessToken = token!;
+      if (creds?.strava && creds.strava.expiresAt <= Date.now()) {
+        const refreshed = await refreshStravaTokens(creds.strava.refreshToken);
+        accessToken = refreshed.accessToken;
+        // Update stored tokens
+        const walletKey = Object.keys(accounts).find((w) => normalizeAddress(w) === normAddr)!;
+        const { setAccount } = await import("./store.js");
+        setAccount(walletKey, {
+          strava: { ...creds.strava, accessToken: refreshed.accessToken, refreshToken: refreshed.refreshToken, expiresAt: refreshed.expiresAt },
+        });
+      }
+
+      const userChallenges = activeChallenges.filter((c) =>
+        c.challengeId.startsWith("STRAVA:") && normalizeAddress(c.beneficiary) === normAddr,
+      );
+      const earliestSince = Math.min(...userChallenges.map((c) => c.createdAt));
+      const activities = await fetchStravaActivities(accessToken, earliestSince);
+
+      for (const c of userChallenges) {
+        const action = c.challengeId.split(":")[1];
+        const since = new Date(c.createdAt * 1000);
+        const eventsByAction = extractStravaEvents(activities, since);
+        const entries = eventsByAction[action] ?? [];
+
+        if (entries.length > 0) {
+          const newEntries = addChallengeEvents(c.index, entries);
+          const totalNew = newEntries.reduce((sum, e) => sum + e.count, 0);
+          if (totalNew > 0) {
+            const newProgress = getChallengeProgress(c.index);
+            console.log(`[cron] Challenge #${c.index}: +${totalNew} ${action} → ${newProgress}/${c.totalCheckpoints}`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`[cron] Failed to fetch Strava activities for athlete ${username}:`, err);
     }
   }
 }

@@ -33,7 +33,11 @@ function getDb(): Database.Database {
       github_access_token TEXT,
       github_username TEXT,
       leetcode_username TEXT,
-      chesscom_username TEXT
+      chesscom_username TEXT,
+      strava_access_token TEXT,
+      strava_refresh_token TEXT,
+      strava_expires_at INTEGER,
+      strava_athlete_id INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS challenge_events (
@@ -61,6 +65,12 @@ function getDb(): Database.Database {
   if (!accountCols.some((c) => c.name === "chesscom_username")) {
     db.exec("ALTER TABLE accounts ADD COLUMN chesscom_username TEXT");
   }
+  if (!accountCols.some((c) => c.name === "strava_access_token")) {
+    db.exec("ALTER TABLE accounts ADD COLUMN strava_access_token TEXT");
+    db.exec("ALTER TABLE accounts ADD COLUMN strava_refresh_token TEXT");
+    db.exec("ALTER TABLE accounts ADD COLUMN strava_expires_at INTEGER");
+    db.exec("ALTER TABLE accounts ADD COLUMN strava_athlete_id INTEGER");
+  }
 
   return db;
 }
@@ -86,10 +96,18 @@ export interface ChessComCredentials {
   username: string;
 }
 
+export interface StravaCredentials {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  athleteId: number;
+}
+
 export interface AppCredentials {
   github?: GitHubCredentials;
   leetcode?: LeetCodeCredentials;
   chesscom?: ChessComCredentials;
+  strava?: StravaCredentials;
 }
 
 interface AccountRow {
@@ -97,6 +115,10 @@ interface AccountRow {
   github_username: string | null;
   leetcode_username: string | null;
   chesscom_username: string | null;
+  strava_access_token: string | null;
+  strava_refresh_token: string | null;
+  strava_expires_at: number | null;
+  strava_athlete_id: number | null;
 }
 
 function rowToCredentials(row: AccountRow): AppCredentials {
@@ -110,11 +132,19 @@ function rowToCredentials(row: AccountRow): AppCredentials {
   if (row.chesscom_username) {
     creds.chesscom = { username: row.chesscom_username };
   }
+  if (row.strava_access_token && row.strava_refresh_token && row.strava_athlete_id) {
+    creds.strava = {
+      accessToken: row.strava_access_token,
+      refreshToken: row.strava_refresh_token,
+      expiresAt: row.strava_expires_at ?? 0,
+      athleteId: row.strava_athlete_id,
+    };
+  }
   return creds;
 }
 
 export function getAccount(walletAddress: string): AppCredentials | null {
-  const row = db().prepare("SELECT github_access_token, github_username, leetcode_username, chesscom_username FROM accounts WHERE wallet_address = ?").get(walletAddress) as AccountRow | undefined;
+  const row = db().prepare("SELECT github_access_token, github_username, leetcode_username, chesscom_username, strava_access_token, strava_refresh_token, strava_expires_at, strava_athlete_id FROM accounts WHERE wallet_address = ?").get(walletAddress) as AccountRow | undefined;
   if (!row) return null;
   const creds = rowToCredentials(row);
   return Object.keys(creds).length > 0 ? creds : null;
@@ -146,6 +176,17 @@ export function setAccount(walletAddress: string, creds: Partial<AppCredentials>
         chesscom_username = excluded.chesscom_username
     `).run(walletAddress, creds.chesscom.username);
   }
+  if (creds.strava) {
+    db().prepare(`
+      INSERT INTO accounts (wallet_address, strava_access_token, strava_refresh_token, strava_expires_at, strava_athlete_id)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(wallet_address) DO UPDATE SET
+        strava_access_token = excluded.strava_access_token,
+        strava_refresh_token = excluded.strava_refresh_token,
+        strava_expires_at = excluded.strava_expires_at,
+        strava_athlete_id = excluded.strava_athlete_id
+    `).run(walletAddress, creds.strava.accessToken, creds.strava.refreshToken, creds.strava.expiresAt, creds.strava.athleteId);
+  }
 }
 
 export function removeAccountApp(walletAddress: string, app: keyof AppCredentials) {
@@ -158,10 +199,13 @@ export function removeAccountApp(walletAddress: string, app: keyof AppCredential
   if (app === "chesscom") {
     db().prepare("UPDATE accounts SET chesscom_username = NULL WHERE wallet_address = ?").run(walletAddress);
   }
+  if (app === "strava") {
+    db().prepare("UPDATE accounts SET strava_access_token = NULL, strava_refresh_token = NULL, strava_expires_at = NULL, strava_athlete_id = NULL WHERE wallet_address = ?").run(walletAddress);
+  }
 }
 
 export function getAllAccounts(): Record<string, AppCredentials> {
-  const rows = db().prepare("SELECT wallet_address, github_access_token, github_username, leetcode_username, chesscom_username FROM accounts").all() as (AccountRow & { wallet_address: string })[];
+  const rows = db().prepare("SELECT wallet_address, github_access_token, github_username, leetcode_username, chesscom_username, strava_access_token, strava_refresh_token, strava_expires_at, strava_athlete_id FROM accounts").all() as (AccountRow & { wallet_address: string })[];
   const result: Record<string, AppCredentials> = {};
   for (const row of rows) {
     const creds = rowToCredentials(row);

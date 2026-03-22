@@ -4,6 +4,7 @@ import { setAccount, getAccount, removeAccountApp } from "../store.js";
 import { verifyGitHubToken } from "../github.js";
 import { verifyLeetCodeUsername } from "../leetcode.js";
 import { verifyChessComUsername } from "../chesscom.js";
+import { exchangeStravaCode } from "../strava.js";
 
 export const authRouter = Router();
 
@@ -126,6 +127,7 @@ authRouter.get("/status", (req, res) => {
     github: account?.github ? { connected: true, username: account.github.username } : { connected: false },
     leetcode: account?.leetcode ? { connected: true, username: account.leetcode.username } : { connected: false },
     chesscom: account?.chesscom ? { connected: true, username: account.chesscom.username } : { connected: false },
+    strava: account?.strava ? { connected: true, username: String(account.strava.athleteId) } : { connected: false },
   });
 });
 
@@ -212,5 +214,93 @@ authRouter.post("/chesscom/disconnect", (req, res) => {
     return;
   }
   removeAccountApp(walletAddress, "chesscom");
+  res.json({ ok: true });
+});
+
+// --- Strava OAuth ---
+
+const pendingStravaOAuth = new Map<string, { wallet: string; returnPath: string; expiry: number }>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of pendingStravaOAuth) {
+    if (val.expiry < now) pendingStravaOAuth.delete(key);
+  }
+}, 5 * 60 * 1000);
+
+authRouter.post("/strava/start", (req, res) => {
+  const { walletAddress, returnPath } = req.body;
+  if (!walletAddress) {
+    res.status(400).json({ error: "walletAddress is required." });
+    return;
+  }
+  if (!process.env.STRAVA_CLIENT_ID) {
+    res.status(500).json({ error: "Strava OAuth not configured. Set STRAVA_CLIENT_ID." });
+    return;
+  }
+
+  const state = randomBytes(16).toString("hex");
+  pendingStravaOAuth.set(state, { wallet: walletAddress, returnPath: returnPath || "/", expiry: Date.now() + 10 * 60 * 1000 });
+
+  const params = new URLSearchParams({
+    client_id: process.env.STRAVA_CLIENT_ID,
+    redirect_uri: `${process.env.PUBLIC_URL || ""}/api/auth/strava/callback`,
+    response_type: "code",
+    approval_prompt: "auto",
+    scope: "read,activity:read_all",
+    state,
+  });
+
+  res.json({ url: `https://www.strava.com/oauth/authorize?${params}` });
+});
+
+authRouter.get("/strava/callback", async (req, res) => {
+  const { code, state, error: oauthError } = req.query;
+
+  if (oauthError) {
+    res.status(400).send(`Strava OAuth error: ${oauthError}`);
+    return;
+  }
+
+  if (!code || !state || typeof code !== "string" || typeof state !== "string") {
+    res.status(400).send("Missing code or state.");
+    return;
+  }
+
+  const pending = pendingStravaOAuth.get(state);
+  if (!pending || pending.expiry < Date.now()) {
+    res.status(400).send("Invalid or expired OAuth state.");
+    return;
+  }
+  pendingStravaOAuth.delete(state);
+
+  try {
+    const tokens = await exchangeStravaCode(code);
+
+    setAccount(pending.wallet, {
+      strava: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresAt: tokens.expiresAt,
+        athleteId: tokens.athleteId,
+      },
+    });
+
+    console.log(`[auth] Linked Strava athlete ${tokens.athleteId} to wallet ${pending.wallet.slice(0, 12)}...`);
+
+    const returnUrl = `${process.env.PUBLIC_URL || ""}${pending.returnPath}`;
+    res.redirect(returnUrl);
+  } catch (e: any) {
+    res.status(400).send(`Strava OAuth failed: ${e.message}`);
+  }
+});
+
+authRouter.post("/strava/disconnect", (req, res) => {
+  const { walletAddress } = req.body;
+  if (!walletAddress) {
+    res.status(400).json({ error: "walletAddress is required." });
+    return;
+  }
+  removeAccountApp(walletAddress, "strava");
   res.json({ ok: true });
 });

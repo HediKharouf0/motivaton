@@ -3,6 +3,7 @@ export enum App {
   Github = "GITHUB",
   LeetCode = "LEETCODE",
   ChessCom = "CHESSCOM",
+  Strava = "STRAVA",
 }
 
 /** Actions available per app */
@@ -30,7 +31,16 @@ export enum ChessComAction {
   WinBullet = "WIN_BULLET",
 }
 
-export type AppAction = GithubAction | LeetCodeAction | ChessComAction;
+export enum StravaAction {
+  LogActivity = "LOG_ACTIVITY",
+  Run = "RUN",
+  Ride = "RIDE",
+  Swim = "SWIM",
+  Walk = "WALK",
+  LogKm = "LOG_KM",
+}
+
+export type AppAction = GithubAction | LeetCodeAction | ChessComAction | StravaAction;
 
 /** Map from App to its available actions */
 export const APP_ACTIONS: Record<App, { value: AppAction; label: string }[]> = {
@@ -57,10 +67,21 @@ export const APP_ACTIONS: Record<App, { value: AppAction; label: string }[]> = {
   ],
 };
 
+  [App.Strava]: [
+    { value: StravaAction.LogActivity, label: "Log Activity" },
+    { value: StravaAction.Run, label: "Run" },
+    { value: StravaAction.Ride, label: "Ride" },
+    { value: StravaAction.Swim, label: "Swim" },
+    { value: StravaAction.Walk, label: "Walk / Hike" },
+    { value: StravaAction.LogKm, label: "Log Kilometers" },
+  ],
+};
+
 export const APP_LABELS: Record<App, string> = {
   [App.Github]: "GitHub",
   [App.LeetCode]: "LeetCode",
   [App.ChessCom]: "Chess.com",
+  [App.Strava]: "Strava",
 };
 
 /** Challenge as submitted from the form */
