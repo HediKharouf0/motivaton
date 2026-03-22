@@ -16,6 +16,7 @@ import { authRouter } from "./routes/auth.js";
 import { webhookRouter } from "./routes/webhook.js";
 import { debugRouter } from "./routes/debug.js";
 import { startCronJobs } from "./cron.js";
+import { handleBotUpdate, setupWebhook } from "./bot.js";
 
 const app = express();
 const PORT = parseInt(process.env.PORT || "3001", 10);
@@ -37,6 +38,16 @@ app.use("/api/verify", verifyRouter);
 app.use("/api/auth", authRouter);
 app.use("/api", debugRouter);
 
+// Telegram bot webhook
+app.post("/api/bot/webhook", async (req, res) => {
+  try {
+    await handleBotUpdate(req.body);
+  } catch (err) {
+    console.error("[bot] webhook error:", err);
+  }
+  res.json({ ok: true });
+});
+
 // Serve frontend static files in production (skip /api paths)
 const frontendDist = resolve(import.meta.dirname, "../../miniapp/dist");
 app.use(express.static(frontendDist));
@@ -48,4 +59,5 @@ app.get("/{*splat}", (req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Motivaton backend running on http://localhost:${PORT}`);
   startCronJobs();
+  setupWebhook();
 });

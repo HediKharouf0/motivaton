@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTonAddress, useTonConnectUI } from "@tonconnect/ui-react";
 import { App, APP_ACTIONS, APP_LABELS, type AppAction, buildChallengeId } from "../types/challenge";
@@ -42,6 +42,20 @@ export function CreateChallenge() {
   const [unlisted, setUnlisted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState("");
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const onResize = () => {
+      const heightDiff = window.innerHeight - vv.height;
+      setKeyboardOpen(heightDiff > 100);
+    };
+
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, []);
 
   const actions = useMemo(() => APP_ACTIONS[app], [app]);
   const challengeId = useMemo(() => buildChallengeId(app, action, count), [app, action, count]);
@@ -409,7 +423,7 @@ export function CreateChallenge() {
               </div>
             </section>
 
-            <div className="sticky-submit">
+            <div className="sticky-submit" style={{ display: keyboardOpen ? "none" : undefined }}>
               <div className="sticky-submit-inner">
                 <div className="sticky-submit-copy">
                   <span className="sticky-submit-label">Locked now</span>

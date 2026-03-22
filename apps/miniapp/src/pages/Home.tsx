@@ -116,7 +116,7 @@ function ChallengeCard({
                   {getActionIcon(appKey, action)}
                 </span>
               </span>
-              <h3 className="vault-title">{actionLabel}</h3>
+              <h3 className="vault-title">{actionLabel} <span className="mini-tag">#{challenge.index}</span></h3>
             </div>
           </div>
           <div className="vault-money">
