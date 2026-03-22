@@ -93,7 +93,18 @@ async function eventsProgressJob() {
       continue;
     }
 
-    console.log(`[cron] @${username}: ${allEvents.length} total events`);
+    const prEvents = allEvents.filter((e) => e.type === "PullRequestEvent");
+    const issueEvents = allEvents.filter((e) => e.type === "IssuesEvent");
+    console.log(`[cron] @${username}: ${allEvents.length} total events, ${prEvents.length} PREvents, ${issueEvents.length} IssueEvents`);
+    for (const pe of prEvents.slice(0, 3)) {
+      const pl = pe.payload as Record<string, unknown>;
+      const pr = pl.pull_request as Record<string, unknown> | undefined;
+      console.log(`[cron]   PREvent ${pe.id}: action=${pl.action} merged=${pr?.merged} created_at=${pe.created_at}`);
+    }
+    for (const ie of issueEvents.slice(0, 3)) {
+      const pl = ie.payload as Record<string, unknown>;
+      console.log(`[cron]   IssueEvent ${ie.id}: action=${pl.action} created_at=${ie.created_at}`);
+    }
 
     // Process each challenge for this user
     const userChallenges = activeChallenges.filter((c) => {
