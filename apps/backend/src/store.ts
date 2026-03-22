@@ -40,6 +40,11 @@ function getDb(): Database.Database {
       count INTEGER NOT NULL DEFAULT 1,
       PRIMARY KEY (challenge_idx, event_id)
     );
+
+    CREATE TABLE IF NOT EXISTS challenge_claims (
+      challenge_idx INTEGER PRIMARY KEY,
+      claimed_at INTEGER NOT NULL
+    );
   `);
 
   // Migration: add count column if missing (table created before this column existed)
@@ -156,6 +161,26 @@ export function getAllProgress(): Record<string, number> {
   const result: Record<string, number> = {};
   for (const row of rows) {
     result[String(row.challenge_idx)] = row.total;
+  }
+  return result;
+}
+
+// -- Challenge claims --
+
+export function markChallengeClaimed(challengeIdx: number) {
+  db().prepare("INSERT OR IGNORE INTO challenge_claims (challenge_idx, claimed_at) VALUES (?, ?)").run(challengeIdx, Date.now());
+}
+
+export function isChallengeClaimed(challengeIdx: number): boolean {
+  const row = db().prepare("SELECT 1 FROM challenge_claims WHERE challenge_idx = ?").get(challengeIdx);
+  return row != null;
+}
+
+export function getAllClaimed(): Record<string, boolean> {
+  const rows = db().prepare("SELECT challenge_idx FROM challenge_claims").all() as { challenge_idx: number }[];
+  const result: Record<string, boolean> = {};
+  for (const row of rows) {
+    result[String(row.challenge_idx)] = true;
   }
   return result;
 }

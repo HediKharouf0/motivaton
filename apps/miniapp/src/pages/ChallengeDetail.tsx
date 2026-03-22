@@ -40,7 +40,7 @@ export function ChallengeDetail() {
   const location = useLocation();
   const [tonConnectUI] = useTonConnectUI();
   const userAddress = useTonAddress();
-  const { getCachedChallenge, progressMap, storeChallenge } = useChallengeCache();
+  const { getCachedChallenge, progressMap, claimedMap, storeChallenge } = useChallengeCache();
 
   const idx = parseInt(id || "0", 10);
   const locationState = location.state as ChallengeLocationState | null;
@@ -51,7 +51,7 @@ export function ChallengeDetail() {
       : cachedChallenge;
 
   const [challenge, setChallenge] = useState<OnChainChallenge | null>(prefetchedChallenge);
-  const [claimedMap, setClaimedMap] = useState<boolean[]>(
+  const [checkpointMap, setCheckpointMap] = useState<boolean[]>(
     prefetchedChallenge ? buildClaimedMap(prefetchedChallenge) : [],
   );
   const [loading, setLoading] = useState(prefetchedChallenge === null);
@@ -70,17 +70,23 @@ export function ChallengeDetail() {
   const [backendProgress, setBackendProgress] = useState<number>(
     prefetchedChallenge ? progressMap[String(prefetchedChallenge.index)] ?? prefetchedChallenge.claimedCount : 0,
   );
+  const [backendClaimed, setBackendClaimed] = useState<boolean>(
+    prefetchedChallenge ? claimedMap[String(prefetchedChallenge.index)] ?? false : false,
+  );
 
   useEffect(() => {
     setLoading(prefetchedChallenge === null);
     setChallenge(prefetchedChallenge);
-    setClaimedMap(prefetchedChallenge ? buildClaimedMap(prefetchedChallenge) : []);
+    setCheckpointMap(prefetchedChallenge ? buildClaimedMap(prefetchedChallenge) : []);
     setUserContribution(null);
     setCreatorContribution(null);
     setVerification(null);
     setAuthStatus(null);
     setBackendProgress(
       prefetchedChallenge ? progressMap[String(prefetchedChallenge.index)] ?? prefetchedChallenge.claimedCount : 0,
+    );
+    setBackendClaimed(
+      prefetchedChallenge ? claimedMap[String(prefetchedChallenge.index)] ?? false : false,
     );
     setError("");
     void loadChallenge({
@@ -108,7 +114,7 @@ export function ChallengeDetail() {
 
       setChallenge(c);
       if (!c) {
-        setClaimedMap([]);
+        setCheckpointMap([]);
         setUserContribution(null);
         setCreatorContribution(null);
         setAuthStatus(null);
@@ -126,7 +132,7 @@ export function ChallengeDetail() {
         ? backendApi.getAuthStatus(userAddress).catch(() => null)
         : Promise.resolve(null);
 
-      const progressPromise = backendApi.getProgress(idx).catch(() => ({ challengeIdx: idx, progress: 0 }));
+      const progressPromise = backendApi.getProgress(idx).catch(() => ({ challengeIdx: idx, progress: 0, claimed: false }));
 
       const [creatorStake, currentUserStake, auth, prog] = await Promise.all([
         creatorContributionPromise,
@@ -135,11 +141,12 @@ export function ChallengeDetail() {
         progressPromise,
       ]);
 
-      storeChallenge({ ...c, index: idx }, prog.progress);
-      setClaimedMap(buildClaimedMap(c));
+      storeChallenge({ ...c, index: idx }, prog.progress, prog.claimed);
+      setCheckpointMap(buildClaimedMap(c));
       setCreatorContribution(creatorStake);
       setUserContribution(userAddress ? currentUserStake : null);
       setBackendProgress(prog.progress);
+      setBackendClaimed(prog.claimed);
       setAuthStatus(auth);
     } catch (e: any) {
       setError(e.message);
@@ -348,15 +355,16 @@ export function ChallengeDetail() {
   const actionLabel = formatActionLabel(action);
   const expired = Date.now() / 1000 > challenge.endDate;
   const fullyCompleted = backendProgress >= challenge.totalCheckpoints;
-  const allClaimed = challenge.claimedCount >= challenge.totalCheckpoints;
-  const isOpen = !allClaimed && !fullyCompleted && !expired;
+  const isOpen = !backendClaimed && !fullyCompleted && !expired;
   const progressPct = Math.min(100, Math.round((backendProgress / challenge.totalCheckpoints) * 100));
-  const status = fullyCompleted || allClaimed
+  const status = backendClaimed
     ? "completed"
-    : expired
-      ? "expired"
-      : "active";
-  const nextCheckpoint = claimedMap.findIndex((claimed) => !claimed);
+    : fullyCompleted
+      ? "claimable"
+      : expired
+        ? "expired"
+        : "active";
+  const nextCheckpoint = checkpointMap.findIndex((claimed) => !claimed);
   const hasAdditionalBackers = creatorContribution !== null && creatorContribution < challenge.totalDeposit;
   const showUserContribution = userContribution !== null && userContribution > 0n;
   const normalizedUserAddress = userAddress ? normalizeAddress(userAddress) : "";
@@ -369,7 +377,7 @@ export function ChallengeDetail() {
   const showOAuthConnectPrompt = isBeneficiary && isOpen && oauthAppKey !== null && !appConnected;
   const showOAuthConnectedState = isBeneficiary && isOpen && oauthAppKey !== null && appConnected;
   const showOAuthEndedWarning = isBeneficiary && !isOpen && expired && !fullyCompleted && oauthAppKey !== null && !appConnected;
-  const canClaimRewards = isBeneficiary && !allClaimed && (expired || fullyCompleted);
+  const canClaimRewards = isBeneficiary && !backendClaimed && (expired || fullyCompleted);
   const showManualVerificationInput = canClaimRewards && appKey === "DUOLINGO";
 
   return (
@@ -532,7 +540,7 @@ export function ChallengeDetail() {
           <div className="progress-fill" style={{ width: `${progressPct}%` }} />
         </div>
         <div className="checkpoint-grid">
-          {claimedMap.map((claimed, i) => (
+          {checkpointMap.map((claimed, i) => (
             <div key={i} className={`checkpoint-pill ${claimed ? "is-claimed" : ""}`}>
               {i + 1}
             </div>
@@ -616,7 +624,7 @@ export function ChallengeDetail() {
         </section>
       )}
 
-      {expired && !allClaimed && isSponsor && (
+      {expired && !backendClaimed && isSponsor && (
         <section className="surface section-panel action-panel">
           <div className="section-header">
             <div>

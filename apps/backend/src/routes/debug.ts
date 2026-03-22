@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getChallengeProgress, getChallengeEvents, getAllProgress } from "../store.js";
+import { getChallengeProgress, getChallengeEvents, getAllProgress, isChallengeClaimed, getAllClaimed } from "../store.js";
 import { getChallenge } from "../chain.js";
 import { progressJob } from "../cron.js";
 
@@ -30,11 +30,12 @@ debugRouter.get("/progress/:challengeIdx", (req, res) => {
   }
   const progress = getChallengeProgress(challengeIdx);
   const events = getChallengeEvents(challengeIdx);
-  res.json({ challengeIdx, progress, events });
+  const claimed = isChallengeClaimed(challengeIdx);
+  res.json({ challengeIdx, progress, events, claimed });
 });
 
 debugRouter.get("/progress", (_req, res) => {
-  res.json(getAllProgress());
+  res.json({ progress: getAllProgress(), claimed: getAllClaimed() });
 });
 
 debugRouter.get("/cron/trigger", async (_req, res) => {

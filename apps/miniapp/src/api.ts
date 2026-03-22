@@ -90,10 +90,10 @@ export const backendApi = {
   },
 
   getProgress(challengeIdx: number) {
-    return request<{ challengeIdx: number; progress: number }>(`/progress/${challengeIdx}`);
+    return request<{ challengeIdx: number; progress: number; claimed: boolean }>(`/progress/${challengeIdx}`);
   },
 
   getAllProgress() {
-    return request<Record<string, number>>("/progress");
+    return request<{ progress: Record<string, number>; claimed: Record<string, boolean> }>("/progress");
   },
 };

@@ -5,7 +5,7 @@ import { normalizeAddress } from "../contract";
 import { useChallengeCache, type IndexedChallenge } from "../challenge-cache";
 import { APP_LABELS, formatActionLabel, parseChallengeId } from "../types/challenge";
 
-function ChallengeCard({ challenge, progress }: { challenge: IndexedChallenge; progress: number }) {
+function ChallengeCard({ challenge, progress, claimed }: { challenge: IndexedChallenge; progress: number; claimed: boolean }) {
   const { app: appKey, action, count } = parseChallengeId(challenge.challengeId);
   const appLabel = APP_LABELS[appKey as keyof typeof APP_LABELS] ?? appKey;
   const actionLabel = formatActionLabel(action);
@@ -14,13 +14,14 @@ function ChallengeCard({ challenge, progress }: { challenge: IndexedChallenge; p
     Math.round((progress / challenge.totalCheckpoints) * 100),
   );
   const expired = Date.now() / 1000 > challenge.endDate;
-  const allClaimed = challenge.claimedCount >= challenge.totalCheckpoints;
   const fullyCompleted = progress >= challenge.totalCheckpoints;
-  const status = fullyCompleted || allClaimed
+  const status = claimed
     ? "completed"
-    : expired
-      ? "expired"
-      : "active";
+    : fullyCompleted
+      ? "claimable"
+      : expired
+        ? "expired"
+        : "active";
   const endsAt = new Date(challenge.endDate * 1000).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -77,7 +78,7 @@ function ChallengeCard({ challenge, progress }: { challenge: IndexedChallenge; p
 
 export function Home() {
   const userAddress = useTonAddress();
-  const { challenges, progressMap, loading, error, hasContractAddress, refreshChallenges } = useChallengeCache();
+  const { challenges, progressMap, claimedMap, loading, error, hasContractAddress, refreshChallenges } = useChallengeCache();
 
   const normalizedUserAddress = userAddress ? normalizeAddress(userAddress) : "";
 
@@ -194,7 +195,7 @@ export function Home() {
         {userAddress && (
           <div className="list-stack challenge-list">
             {myChallenges.map((c) => (
-              <ChallengeCard key={c.index} challenge={c} progress={progressMap[String(c.index)] || 0} />
+              <ChallengeCard key={c.index} challenge={c} progress={progressMap[String(c.index)] || 0} claimed={claimedMap[String(c.index)] || false} />
             ))}
           </div>
         )}
@@ -246,7 +247,7 @@ export function Home() {
         {browseChallenges.length > 0 && (
           <div className="list-stack challenge-list">
             {browseChallenges.map((c) => (
-              <ChallengeCard key={c.index} challenge={c} progress={progressMap[String(c.index)] || 0} />
+              <ChallengeCard key={c.index} challenge={c} progress={progressMap[String(c.index)] || 0} claimed={claimedMap[String(c.index)] || false} />
             ))}
           </div>
         )}
