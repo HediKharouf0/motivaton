@@ -64,6 +64,28 @@ Each completed-task section should include:
 
 ## Completed Substantial Tasks
 
+### 2026-03-22 - Live Event-Window Verification Replaced Stored Progress Checks
+
+Summary:
+- Reworked the backend verification route so supported apps no longer answer `/verify/check` and claim signing from the stored `challenge_events` total alone.
+- Added a live verification path that reads the on-chain challenge, resolves the linked beneficiary account, fetches source events between `challenge.createdAt` and now, filters them by the challenge action, and counts only the remaining matches.
+- Extended GitHub verification to paginate recent user events until it reaches the challenge window and added Chess.com month-by-month archive loading so older challenge windows can still be re-evaluated.
+
+Why it matters now:
+- The miniapp verification card and claim-proof flow now reflect actual events in the challenge window instead of reporting `N/N` solely because the local progress store already held that count.
+- Contributors can reason about backend validation as a live recomputation of matching evidence rather than a thin wrapper over cached progress totals.
+
+Key files:
+- `apps/backend/src/routes/verify.ts`
+- `apps/backend/src/live-verification.ts`
+- `apps/backend/src/events.ts`
+- `apps/backend/src/chesscom.ts`
+- `AGENTS.md`
+
+Follow-up gaps:
+- GitHub, LeetCode, and Strava verification still depend on the upstream APIs exposing a sufficiently deep recent-history window.
+- Duolingo still uses the older profile-based verifier because it does not fit the same event-window model cleanly.
+
 ### 2026-03-21 - Documentation State Alignment
 
 Summary:
