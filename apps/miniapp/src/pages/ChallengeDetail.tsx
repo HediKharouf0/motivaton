@@ -136,8 +136,17 @@ function getRouteCopy(state: RouteState, actionLabel: string, canClaimRewards: b
 
 function getApiShortReason(error: unknown): string {
   if (!error || typeof error !== "object") return "";
-  const shortReason = (error as { shortReason?: unknown }).shortReason;
-  return typeof shortReason === "string" ? shortReason : "";
+  const apiError = error as {
+    shortReason?: unknown;
+    details?: { inspection?: { shortReason?: unknown } };
+  };
+
+  if (typeof apiError.shortReason === "string") {
+    return apiError.shortReason;
+  }
+
+  const nestedShortReason = apiError.details?.inspection?.shortReason;
+  return typeof nestedShortReason === "string" ? nestedShortReason : "";
 }
 
 export function ChallengeDetail() {
