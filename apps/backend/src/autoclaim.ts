@@ -19,7 +19,10 @@ function getClient(): TonClient {
 
 async function getWallet() {
   const mnemonic = process.env.WALLET_MNEMONIC;
-  if (!mnemonic) return null;
+  if (!mnemonic) {
+    console.log("[autoclaim] No WALLET_MNEMONIC set, skipping");
+    return null;
+  }
 
   const kp = await mnemonicToPrivateKey(mnemonic.split(" "));
   const wallet = WalletContractV5R1.create({ publicKey: kp.publicKey, workchain: 0 });
@@ -41,32 +44,62 @@ export async function autoClaimJob() {
   if (!walletData) return;
 
   const contractAddress = process.env.CONTRACT_ADDRESS;
-  if (!contractAddress) return;
+  if (!contractAddress) {
+    console.log("[autoclaim] No CONTRACT_ADDRESS set, skipping");
+    return;
+  }
 
   let challenges;
   try {
     challenges = await getAllChallenges();
-  } catch {
+  } catch (err) {
+    console.error("[autoclaim] Failed to fetch challenges:", err);
     return;
   }
 
+  console.log(`[autoclaim] Checking ${challenges.length} challenges`);
+
   const now = Date.now() / 1000;
   const claimable = challenges.filter((c) => {
-    if (!c.active) return false;
-    if (isChallengeClaimed(c.index)) return false;
     const progress = getChallengeProgress(c.index);
-    if (progress < c.totalCheckpoints) {
-      // Not fully completed — but check if expired with partial progress
-      if (c.endDate > now) return false;
+    const claimed = isChallengeClaimed(c.index);
+
+    if (!c.active) {
+      console.log(`[autoclaim]   #${c.index}: skip (inactive on-chain)`);
+      return false;
     }
-    return progress > 0 && progress > c.claimedCount;
+    if (claimed) {
+      console.log(`[autoclaim]   #${c.index}: skip (already claimed in db)`);
+      return false;
+    }
+    if (progress < c.totalCheckpoints && c.endDate > now) {
+      console.log(`[autoclaim]   #${c.index}: skip (progress ${progress}/${c.totalCheckpoints}, not expired)`);
+      return false;
+    }
+    if (progress <= 0) {
+      console.log(`[autoclaim]   #${c.index}: skip (no progress)`);
+      return false;
+    }
+    if (progress <= c.claimedCount) {
+      console.log(`[autoclaim]   #${c.index}: skip (progress ${progress} <= claimedCount ${c.claimedCount})`);
+      return false;
+    }
+
+    console.log(`[autoclaim]   #${c.index}: CLAIMABLE (progress ${progress}/${c.totalCheckpoints}, on-chain claimed ${c.claimedCount})`);
+    return true;
   });
 
-  if (claimable.length === 0) return;
+  if (claimable.length === 0) {
+    console.log("[autoclaim] No claimable challenges");
+    return;
+  }
+
+  console.log(`[autoclaim] ${claimable.length} challenges to claim`);
 
   const client = getClient();
   const { wallet, kp } = walletData;
   const walletContract = client.open(wallet);
+  console.log(`[autoclaim] Operator wallet: ${wallet.address.toString()}`);
 
   for (const c of claimable) {
     const progress = getChallengeProgress(c.index);
@@ -76,10 +109,13 @@ export async function autoClaimJob() {
 
     try {
       const beneficiary = Address.parse(c.beneficiary);
+      console.log(`[autoclaim] #${c.index}: signing proof for earnedCount=${earnedCount}, beneficiary=${c.beneficiary}`);
+
       const signature = signClaimAllProof(c.index, earnedCount, beneficiary);
       const body = buildClaimAllBody(c.index, earnedCount, signature);
 
       const seqno = await walletContract.getSeqno();
+      console.log(`[autoclaim] #${c.index}: sending tx, seqno=${seqno}, contract=${contractAddress}`);
 
       await walletContract.sendTransfer({
         secretKey: kp.secretKey,
@@ -95,17 +131,26 @@ export async function autoClaimJob() {
         ],
       });
 
-      markChallengeClaimed(c.index);
-      console.log(`[autoclaim] Challenge #${c.index}: claimed ${earnedCount}/${c.totalCheckpoints} checkpoints for ${c.beneficiary}`);
+      console.log(`[autoclaim] #${c.index}: tx sent, waiting for confirmation...`);
 
-      // Wait for seqno to increment before claiming the next one
+      let confirmed = false;
       for (let i = 0; i < 15; i++) {
         await new Promise((r) => setTimeout(r, 2000));
         const newSeqno = await walletContract.getSeqno();
-        if (newSeqno > seqno) break;
+        if (newSeqno > seqno) {
+          confirmed = true;
+          break;
+        }
+      }
+
+      if (confirmed) {
+        markChallengeClaimed(c.index);
+        console.log(`[autoclaim] #${c.index}: CLAIMED ${earnedCount}/${c.totalCheckpoints} checkpoints for ${c.beneficiary}`);
+      } else {
+        console.warn(`[autoclaim] #${c.index}: tx sent but confirmation timed out`);
       }
     } catch (err) {
-      console.error(`[autoclaim] Failed to claim challenge #${c.index}:`, err);
+      console.error(`[autoclaim] #${c.index}: FAILED:`, err);
     }
   }
 }

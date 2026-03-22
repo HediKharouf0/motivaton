@@ -1,12 +1,21 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { TonConnectUIProvider } from "@tonconnect/ui-react";
 import { CreateChallenge } from "./pages/CreateChallenge";
 import { ChallengeDetail } from "./pages/ChallengeDetail";
 import { Home } from "./pages/Home";
 import { ChallengeCacheProvider } from "./challenge-cache";
+import { useEffect } from "react";
 import "./index.css";
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 const MANIFEST_URL =
   import.meta.env.VITE_TONCONNECT_MANIFEST_URL ||
@@ -17,6 +26,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <TonConnectUIProvider manifestUrl={MANIFEST_URL}>
       <ChallengeCacheProvider>
         <BrowserRouter basename={import.meta.env.BASE_URL}>
+          <ScrollToTop />
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/create" element={<CreateChallenge />} />
