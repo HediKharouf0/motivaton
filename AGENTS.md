@@ -466,6 +466,26 @@ Follow-up gaps:
 - Existing GitHub tokens may still need reconnecting to maximize inspectability on private or repo-scoped work.
 - Abstaining on unreadable commits reduces false positives, but it also means some commits can still pass without deep content inspection if GitHub does not expose enough data.
 
+### 2026-03-22 - AI Arbitration Disabled In Verification Pipeline
+
+Summary:
+- Removed AI-based blocking from both the backend verification routes and the cron progress-credit pipeline.
+- GitHub commits and Strava activities now flow through the normal event-based counting path again without Cocoon / OpenAI / Anthropic / DeepSeek being able to veto progress or claims.
+- Kept the rest of the challenge flow intact so disabling the AI layer does not break funding, verification, claiming, or UI routing.
+
+Why it matters now:
+- The product no longer falsely rejects legitimate work due to over-aggressive or low-visibility AI inspection.
+- Contributors can now reason about progress and claim logic without assuming there is still an active AI arbiter in production.
+
+Key files:
+- `apps/backend/src/routes/verify.ts`
+- `apps/backend/src/cron.ts`
+- `AGENTS.md`
+
+Follow-up gaps:
+- The repository still contains the older AI inspection module code, but it is no longer part of the active verification or progress-credit path.
+- If quality gating is reintroduced later, it should be redesigned from a clearer product and reliability baseline rather than re-enabled implicitly.
+
 ### 2026-03-22 - Smart Contract ClaimAll And Auto-Claim Pipeline
 
 Summary:

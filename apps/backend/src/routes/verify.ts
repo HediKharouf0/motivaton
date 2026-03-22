@@ -3,7 +3,6 @@ import { Address } from "@ton/core";
 import { getVerifier } from "../verifiers/index.js";
 import { signClaimAllProof, getVerifierPublicKey } from "../signer.js";
 import { getChallenge } from "../chain.js";
-import { inspectChallengeAchievement } from "../cocoon.js";
 
 export const verifyRouter = Router();
 
@@ -29,24 +28,7 @@ verifyRouter.post("/check", async (req, res) => {
 
   const result = await verifier.verify({ app, action, count, challengeIdx, duolingoUsername });
 
-  let inspection = null;
-  if (result.verified && challengeIdx != null) {
-    try {
-      const challenge = await getChallenge(Number(challengeIdx));
-      if (challenge) {
-        inspection = await inspectChallengeAchievement(challenge);
-      }
-    } catch (error) {
-      console.error("[verify/check] Achievement inspection failed:", error);
-    }
-  }
-
-  res.json({
-    ...result,
-    blocked: Boolean(inspection),
-    shortReason: inspection?.shortReason,
-    inspection,
-  });
+  res.json(result);
 });
 
 /**
@@ -141,21 +123,6 @@ verifyRouter.post("/sign-proof", async (req, res) => {
         earnedCount,
         alreadyClaimed: challenge.claimedCount,
         message: `Earned ${earnedCount}/${challenge.totalCheckpoints} checkpoints, ${challenge.claimedCount} already claimed.`,
-      },
-    });
-    return;
-  }
-
-  const inspection = await inspectChallengeAchievement(challenge);
-  if (inspection) {
-    res.status(403).json({
-      error: inspection.shortReason,
-      shortReason: inspection.shortReason,
-      details: {
-        ...result,
-        earnedCount,
-        alreadyClaimed: challenge.claimedCount,
-        inspection,
       },
     });
     return;

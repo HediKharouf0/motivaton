@@ -317,7 +317,7 @@ export function CreateChallenge() {
                   <div className="field-panel">
                     <span className="field-label">Deadline</span>
                     <input
-                      className="field-input"
+                      className="field-input date-field-input"
                       type="date"
                       min={minDate}
                       value={endDate}
@@ -329,7 +329,7 @@ export function CreateChallenge() {
                   <div className="field-panel">
                     <span className="field-label">Beneficiary wallet</span>
                     <input
-                      className="field-input"
+                      className="field-input wallet-field-input"
                       type="text"
                       placeholder={userAddress || "Connect wallet first"}
                       value={whoIsPaid}
