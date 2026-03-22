@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTonAddress, useTonConnectUI } from "@tonconnect/ui-react";
 import { normalizeAddress } from "../contract";
@@ -15,6 +15,27 @@ const STATUS_OPTIONS: { value: ChallengeStatusFilter; label: string }[] = [
   { value: "COMPLETED", label: "Completed" },
   { value: "EXPIRED", label: "Expired" },
 ];
+
+type AppFilter = "ALL" | string;
+
+const APP_FILTER_OPTIONS: { value: AppFilter; label: string }[] = [
+  { value: "ALL", label: "Any app" },
+  ...Object.values(App).map((a) => ({ value: a, label: APP_LABELS[a] })),
+];
+
+function getChallengeStatusKey(
+  challenge: IndexedChallenge,
+  progress: number,
+  claimed: boolean,
+): string {
+  const expired = Date.now() / 1000 > challenge.endDate;
+  const earnedCount = Math.min(progress, challenge.totalCheckpoints);
+  const fullyReleased = claimed || challenge.claimedCount >= challenge.totalCheckpoints;
+  if (fullyReleased) return "completed";
+  if (earnedCount >= challenge.totalCheckpoints) return "ready";
+  if (expired) return "expired";
+  return "active";
+}
 
 function formatTonAmount(value: bigint | number) {
   const ton = Number(value) / 1e9;
@@ -164,6 +185,9 @@ export function Home() {
     refreshChallenges,
   } = useChallengeCache();
 
+  const [statusFilter, setStatusFilter] = useState<ChallengeStatusFilter>("ALL");
+  const [appFilter, setAppFilter] = useState<AppFilter>("ALL");
+
   const normalizedUserAddress = userAddress ? normalizeAddress(userAddress) : "";
 
   useEffect(() => {
@@ -188,7 +212,24 @@ export function Home() {
     : [];
 
   const myChallengeIds = new Set(myChallenges.map((challenge) => challenge.index));
-  const browseChallenges = challenges.filter((challenge) => !challenge.unlisted && !myChallengeIds.has(challenge.index));
+  const browseChallengesAll = challenges.filter((challenge) => !challenge.unlisted && !myChallengeIds.has(challenge.index));
+
+  function applyFilters(list: IndexedChallenge[]) {
+    return list.filter((c) => {
+      if (appFilter !== "ALL") {
+        const app = c.challengeId.split(":")[0];
+        if (app !== appFilter) return false;
+      }
+      if (statusFilter !== "ALL") {
+        const status = getChallengeStatusKey(c, progressMap[String(c.index)] || 0, claimedMap[String(c.index)] || false);
+        if (status.toUpperCase() !== statusFilter) return false;
+      }
+      return true;
+    });
+  }
+
+  const filteredMyChallenges = applyFilters(myChallenges);
+  const browseChallenges = applyFilters(browseChallengesAll);
 
   return (
     <div className="screen">
@@ -263,6 +304,27 @@ export function Home() {
             </div>
           )}
 
+          <div className="filter-bar">
+            <select
+              className="filter-select"
+              value={appFilter}
+              onChange={(e) => setAppFilter(e.target.value)}
+            >
+              {APP_FILTER_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <select
+              className="filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as ChallengeStatusFilter)}
+            >
+              {STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+
           <section className="panel section-shell">
             <div className="section-heading">
               <div>
@@ -270,7 +332,7 @@ export function Home() {
                 <h2 className="section-title">Your challenges</h2>
               </div>
               <div className="section-meta">
-                {userAddress && <span className="mini-tag">{myChallenges.length} live</span>}
+                {userAddress && <span className="mini-tag">{filteredMyChallenges.length} shown</span>}
                 <button
                   type="button"
                   className="refresh-button"
@@ -299,16 +361,16 @@ export function Home() {
               </div>
             )}
 
-            {userAddress && !loading && myChallenges.length === 0 && (
+            {userAddress && !loading && filteredMyChallenges.length === 0 && (
               <div className="state-card">
-                <strong>No vaults yet</strong>
-                <p>Your funded or assigned challenges will appear here first.</p>
+                <strong>{myChallenges.length === 0 ? "No vaults yet" : "No matches"}</strong>
+                <p>{myChallenges.length === 0 ? "Your funded or assigned challenges will appear here first." : "No challenges match the current filters."}</p>
               </div>
             )}
 
-            {userAddress && myChallenges.length > 0 && (
+            {userAddress && filteredMyChallenges.length > 0 && (
               <div className="vault-list">
-                {myChallenges.map((challenge) => (
+                {filteredMyChallenges.map((challenge) => (
                   <ChallengeCard
                     key={challenge.index}
                     challenge={challenge}
@@ -327,7 +389,7 @@ export function Home() {
                 <h2 className="section-title">Public vaults</h2>
               </div>
               <div className="section-meta">
-                <span className="mini-tag">{browseChallenges.length} open</span>
+                <span className="mini-tag">{browseChallenges.length} shown</span>
                 <button
                   type="button"
                   className="refresh-button"

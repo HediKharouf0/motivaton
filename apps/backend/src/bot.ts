@@ -80,6 +80,13 @@ export async function setupWebhook(): Promise<void> {
     console.log(`[bot] Webhook set to ${webhookUrl}`);
   }
 
+  // Register bot commands
+  await botApi("setMyCommands", {
+    commands: [
+      { command: "start", description: "Open Motivaton" },
+    ],
+  });
+
   // Set bot menu button to open the miniapp
   await botApi("setChatMenuButton", {
     menu_button: {

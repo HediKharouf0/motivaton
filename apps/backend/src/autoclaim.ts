@@ -1,7 +1,7 @@
 import { beginCell, Address, toNano, internal, SendMode } from "@ton/core";
 import { TonClient, WalletContractV5R1 } from "@ton/ton";
 import { mnemonicToPrivateKey } from "@ton/crypto";
-import { getAllChallenges } from "./chain.js";
+import type { OnChainChallenge } from "./chain.js";
 import { getChallengeProgress, isChallengeClaimed, markChallengeClaimed, clearChallengeClaimed, getTelegramChatIdByBeneficiary } from "./store.js";
 import { signClaimAllProof } from "./signer.js";
 import { sendTelegramMessage, formatClaimNotification } from "./telegram.js";
@@ -40,28 +40,12 @@ function buildClaimAllBody(challengeIdx: number, earnedCount: number, signature:
     .endCell();
 }
 
-export async function autoClaimJob() {
+export async function autoClaimJob(challenges: (OnChainChallenge & { index: number })[]) {
   const walletData = await getWallet();
-  if (!walletData) {
-    console.log("[autoclaim] No WALLET_MNEMONIC set, skipping");
-    return;
-  }
+  if (!walletData) return;
 
   const contractAddress = process.env.CONTRACT_ADDRESS;
-  if (!contractAddress) {
-    console.log("[autoclaim] No CONTRACT_ADDRESS set, skipping");
-    return;
-  }
-
-  let challenges;
-  try {
-    challenges = await getAllChallenges();
-  } catch (err) {
-    console.error("[autoclaim] Failed to fetch challenges:", err);
-    return;
-  }
-
-  console.log(`[autoclaim] Checking ${challenges.length} challenges`);
+  if (!contractAddress) return;
 
   const now = Date.now() / 1000;
   // Reconcile stale claim entries: if DB says claimed but on-chain says not, clear it
@@ -73,40 +57,16 @@ export async function autoClaimJob() {
   }
 
   const claimable = challenges.filter((c) => {
+    if (!c.active) return false;
+    if (isChallengeClaimed(c.index)) return false;
     const progress = getChallengeProgress(c.index);
-    const claimed = isChallengeClaimed(c.index);
-
-    if (!c.active) {
-      console.log(`[autoclaim]   #${c.index}: skip (inactive on-chain)`);
-      return false;
-    }
-    if (claimed) {
-      console.log(`[autoclaim]   #${c.index}: skip (already claimed in db)`);
-      return false;
-    }
-    if (progress < c.totalCheckpoints && c.endDate > now) {
-      console.log(`[autoclaim]   #${c.index}: skip (progress ${progress}/${c.totalCheckpoints}, not expired)`);
-      return false;
-    }
-    if (progress <= 0) {
-      console.log(`[autoclaim]   #${c.index}: skip (no progress)`);
-      return false;
-    }
-    if (progress <= c.claimedCount) {
-      console.log(`[autoclaim]   #${c.index}: skip (progress ${progress} <= claimedCount ${c.claimedCount})`);
-      return false;
-    }
-
-    console.log(`[autoclaim]   #${c.index}: CLAIMABLE (progress ${progress}/${c.totalCheckpoints}, on-chain claimed ${c.claimedCount})`);
+    if (progress < c.totalCheckpoints && c.endDate > now) return false;
+    if (progress <= 0) return false;
+    if (progress <= c.claimedCount) return false;
     return true;
   });
 
-  if (claimable.length === 0) {
-    console.log("[autoclaim] No claimable challenges");
-    return;
-  }
-
-  console.log(`[autoclaim] ${claimable.length} challenges to claim`);
+  if (claimable.length === 0) return;
 
   const client = getClient();
   const { wallet, kp } = walletData;

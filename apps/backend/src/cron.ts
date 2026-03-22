@@ -52,13 +52,13 @@ function collectAppUsers(
   return users;
 }
 
-async function eventsProgressJob() {
+async function eventsProgressJob(): Promise<(OnChainChallenge & { index: number })[] | null> {
   let challenges;
   try {
     challenges = await getAllChallenges();
   } catch (err) {
     console.error("[cron] Failed to fetch challenges:", err);
-    return;
+    return null;
   }
 
   const now = Date.now() / 1000;
@@ -117,7 +117,14 @@ async function eventsProgressJob() {
           const totalNew = newEntries.reduce((sum, e) => sum + e.count, 0);
           if (totalNew > 0) {
             const newProgress = getChallengeProgress(c.index);
-            console.log(`[cron] [GITHUB] #${c.index}: +${totalNew} ${action} → ${newProgress}/${c.totalCheckpoints}`);
+            // Log with event timestamps
+            const newIds = new Set(newEntries.map((e) => e.id));
+            const matchedEvents = allEvents.filter((e) => {
+              const eventEntries = extractEvents([e], since)[action];
+              return eventEntries?.some((entry) => newIds.has(entry.id));
+            });
+            const timestamps = matchedEvents.map((e) => e.created_at).join(", ");
+            console.log(`[cron] [GITHUB] #${c.index}: +${totalNew} ${action} → ${newProgress}/${c.totalCheckpoints} since=${since.toISOString()} events=[${timestamps}]`);
           }
         }
       }
@@ -253,11 +260,15 @@ async function eventsProgressJob() {
       console.error(`[cron] [STRAVA] Failed for athlete ${username}:`, err);
     }
   }
+
+  return challenges;
 }
 
 async function minuteJob() {
-  await eventsProgressJob();
-  await autoClaimJob();
+  const challenges = await eventsProgressJob();
+  if (challenges) {
+    await autoClaimJob(challenges);
+  }
 }
 
 export function startCronJobs() {
