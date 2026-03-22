@@ -49,6 +49,7 @@ export interface AuthConnection {
 export interface AuthStatus {
   github: AuthConnection;
   leetcode: AuthConnection;
+  chesscom: AuthConnection;
 }
 
 /** Backend API — verification, signing, and auth */
@@ -99,6 +100,20 @@ export const backendApi = {
 
   disconnectLeetCode(walletAddress: string) {
     return request<{ ok: boolean }>("/auth/leetcode/disconnect", {
+      method: "POST",
+      body: JSON.stringify({ walletAddress }),
+    });
+  },
+
+  connectChessCom(walletAddress: string, username: string) {
+    return request<{ ok: boolean; username: string }>("/auth/chesscom/connect", {
+      method: "POST",
+      body: JSON.stringify({ walletAddress, username }),
+    });
+  },
+
+  disconnectChessCom(walletAddress: string) {
+    return request<{ ok: boolean }>("/auth/chesscom/disconnect", {
       method: "POST",
       body: JSON.stringify({ walletAddress }),
     });

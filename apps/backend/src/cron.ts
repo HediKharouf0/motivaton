@@ -4,6 +4,7 @@ import { getAllChallenges, type OnChainChallenge } from "./chain.js";
 import { getAllAccounts, addChallengeEvents, getChallengeProgress, isChallengeClaimed, type AppCredentials } from "./store.js";
 import { fetchUserEvents, extractEvents } from "./events.js";
 import { fetchRecentAcceptedSubmissions, extractLeetCodeEvents, fetchUserStreak } from "./leetcode.js";
+import { fetchRecentGames, extractChessComEvents } from "./chesscom.js";
 
 function normalizeAddress(addr: string): string {
   try {
@@ -39,6 +40,8 @@ function collectAppUsers(
       users.set(normBeneficiary, { wallet: entry[0], username: creds.github.username, token: creds.github.accessToken });
     } else if (app === "LEETCODE" && creds.leetcode) {
       users.set(normBeneficiary, { wallet: entry[0], username: creds.leetcode.username });
+    } else if (app === "CHESSCOM" && creds.chesscom) {
+      users.set(normBeneficiary, { wallet: entry[0], username: creds.chesscom.username });
     }
   }
 
@@ -189,6 +192,37 @@ async function eventsProgressJob() {
       }
     } catch (err) {
       console.error(`[cron] Failed to fetch LeetCode submissions for @${username}:`, err);
+    }
+  }
+
+  // --- Chess.com ---
+  const chesscomUsers = collectAppUsers("CHESSCOM", activeChallenges, accounts);
+
+  for (const [normAddr, { username }] of chesscomUsers) {
+    try {
+      const games = await fetchRecentGames(username);
+
+      const userChallenges = activeChallenges.filter((c) =>
+        c.challengeId.startsWith("CHESSCOM:") && normalizeAddress(c.beneficiary) === normAddr,
+      );
+
+      for (const c of userChallenges) {
+        const action = c.challengeId.split(":")[1];
+        const since = new Date(c.createdAt * 1000);
+        const eventsByAction = extractChessComEvents(games, username, since);
+        const entries = eventsByAction[action] ?? [];
+
+        if (entries.length > 0) {
+          const newEntries = addChallengeEvents(c.index, entries);
+          const totalNew = newEntries.reduce((sum, e) => sum + e.count, 0);
+          if (totalNew > 0) {
+            const newProgress = getChallengeProgress(c.index);
+            console.log(`[cron] Challenge #${c.index}: +${totalNew} ${action} → ${newProgress}/${c.totalCheckpoints}`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(`[cron] Failed to fetch Chess.com games for @${username}:`, err);
     }
   }
 }

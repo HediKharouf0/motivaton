@@ -2,6 +2,7 @@
 export enum App {
   Github = "GITHUB",
   LeetCode = "LEETCODE",
+  ChessCom = "CHESSCOM",
 }
 
 /** Actions available per app */
@@ -21,7 +22,15 @@ export enum LeetCodeAction {
   MaintainStreak = "MAINTAIN_STREAK",
 }
 
-export type AppAction = GithubAction | LeetCodeAction;
+export enum ChessComAction {
+  PlayGame = "PLAY_GAME",
+  WinGame = "WIN_GAME",
+  WinRapid = "WIN_RAPID",
+  WinBlitz = "WIN_BLITZ",
+  WinBullet = "WIN_BULLET",
+}
+
+export type AppAction = GithubAction | LeetCodeAction | ChessComAction;
 
 /** Map from App to its available actions */
 export const APP_ACTIONS: Record<App, { value: AppAction; label: string }[]> = {
@@ -39,11 +48,19 @@ export const APP_ACTIONS: Record<App, { value: AppAction; label: string }[]> = {
     { value: LeetCodeAction.SolveHard, label: "Solve Hard" },
     { value: LeetCodeAction.MaintainStreak, label: "Maintain Streak" },
   ],
+  [App.ChessCom]: [
+    { value: ChessComAction.PlayGame, label: "Play Game" },
+    { value: ChessComAction.WinGame, label: "Win Game" },
+    { value: ChessComAction.WinRapid, label: "Win Rapid" },
+    { value: ChessComAction.WinBlitz, label: "Win Blitz" },
+    { value: ChessComAction.WinBullet, label: "Win Bullet" },
+  ],
 };
 
 export const APP_LABELS: Record<App, string> = {
   [App.Github]: "GitHub",
   [App.LeetCode]: "LeetCode",
+  [App.ChessCom]: "Chess.com",
 };
 
 /** Challenge as submitted from the form */

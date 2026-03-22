@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { setAccount, getAccount, removeAccountApp } from "../store.js";
 import { verifyGitHubToken } from "../github.js";
 import { verifyLeetCodeUsername } from "../leetcode.js";
+import { verifyChessComUsername } from "../chesscom.js";
 
 export const authRouter = Router();
 
@@ -124,6 +125,7 @@ authRouter.get("/status", (req, res) => {
   res.json({
     github: account?.github ? { connected: true, username: account.github.username } : { connected: false },
     leetcode: account?.leetcode ? { connected: true, username: account.leetcode.username } : { connected: false },
+    chesscom: account?.chesscom ? { connected: true, username: account.chesscom.username } : { connected: false },
   });
 });
 
@@ -174,5 +176,41 @@ authRouter.post("/leetcode/disconnect", (req, res) => {
     return;
   }
   removeAccountApp(walletAddress, "leetcode");
+  res.json({ ok: true });
+});
+
+/**
+ * POST /api/auth/chesscom/connect
+ * Body: { walletAddress, username }
+ */
+authRouter.post("/chesscom/connect", async (req, res) => {
+  const { walletAddress, username } = req.body;
+  if (!walletAddress || !username) {
+    res.status(400).json({ error: "walletAddress and username are required." });
+    return;
+  }
+
+  const valid = await verifyChessComUsername(username);
+  if (!valid) {
+    res.status(400).json({ error: `Chess.com user "${username}" not found.` });
+    return;
+  }
+
+  setAccount(walletAddress, { chesscom: { username } });
+  console.log(`[auth] Linked Chess.com @${username} to wallet ${walletAddress.slice(0, 12)}...`);
+  res.json({ ok: true, username });
+});
+
+/**
+ * POST /api/auth/chesscom/disconnect
+ * Body: { walletAddress }
+ */
+authRouter.post("/chesscom/disconnect", (req, res) => {
+  const { walletAddress } = req.body;
+  if (!walletAddress) {
+    res.status(400).json({ error: "walletAddress is required." });
+    return;
+  }
+  removeAccountApp(walletAddress, "chesscom");
   res.json({ ok: true });
 });

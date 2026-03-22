@@ -16,7 +16,7 @@ import { backendApi, type VerificationResult, type AuthStatus } from "../api";
 import { useChallengeCache } from "../challenge-cache";
 import { APP_LABELS, formatActionLabel, parseChallengeId } from "../types/challenge";
 
-const CONNECTABLE_APPS = ["github", "leetcode"] as const;
+const CONNECTABLE_APPS = ["github", "leetcode", "chesscom"] as const;
 
 function getConnectableAppKey(appKey: string): (typeof CONNECTABLE_APPS)[number] | null {
   const authKey = appKey.toLowerCase() as (typeof CONNECTABLE_APPS)[number];
@@ -66,6 +66,7 @@ export function ChallengeDetail() {
   const [creatorContribution, setCreatorContribution] = useState<bigint | null>(null);
   const [duolingoInput, setDuolingoInput] = useState("");
   const [leetcodeInput, setLeetcodeInput] = useState("");
+  const [chesscomInput, setChesscomInput] = useState("");
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [backendProgress, setBackendProgress] = useState<number>(
@@ -246,6 +247,15 @@ export function ChallengeDetail() {
           await loadChallenge({ forceRefresh: true });
           return;
         }
+        case "chesscom": {
+          if (!chesscomInput.trim()) {
+            alert("Enter your Chess.com username.");
+            return;
+          }
+          await backendApi.connectChessCom(userAddress, chesscomInput.trim());
+          await loadChallenge({ forceRefresh: true });
+          return;
+        }
       }
     } catch (e: any) {
       alert(e.message || "Connection failed.");
@@ -351,7 +361,9 @@ export function ChallengeDetail() {
   const showConnectPrompt = isBeneficiary && isOpen && connectableKey !== null && !appConnected;
   const showConnectedState = isBeneficiary && isOpen && connectableKey !== null && appConnected;
   const showEndedWarning = isBeneficiary && !isOpen && expired && !fullyCompleted && connectableKey !== null && !appConnected;
-  const needsUsernameInput = connectableKey === "leetcode";
+  const needsUsernameInput = connectableKey === "leetcode" || connectableKey === "chesscom";
+  const usernameInputValue = connectableKey === "leetcode" ? leetcodeInput : chesscomInput;
+  const usernameInputSetter = connectableKey === "leetcode" ? setLeetcodeInput : setChesscomInput;
   const canClaimRewards = isBeneficiary && !backendClaimed && (expired || fullyCompleted);
   const showManualVerificationInput = canClaimRewards && appKey === "DUOLINGO";
 
@@ -427,8 +439,8 @@ export function ChallengeDetail() {
             <input
               className="form-input"
               placeholder={`Your ${appLabel} username`}
-              value={leetcodeInput}
-              onChange={(e) => setLeetcodeInput(e.target.value)}
+              value={usernameInputValue}
+              onChange={(e) => usernameInputSetter(e.target.value)}
               style={{ marginBottom: "0.75rem" }}
             />
           )}

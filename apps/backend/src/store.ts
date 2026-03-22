@@ -32,7 +32,8 @@ function getDb(): Database.Database {
       wallet_address TEXT PRIMARY KEY,
       github_access_token TEXT,
       github_username TEXT,
-      leetcode_username TEXT
+      leetcode_username TEXT,
+      chesscom_username TEXT
     );
 
     CREATE TABLE IF NOT EXISTS challenge_events (
@@ -57,6 +58,9 @@ function getDb(): Database.Database {
   if (!accountCols.some((c) => c.name === "leetcode_username")) {
     db.exec("ALTER TABLE accounts ADD COLUMN leetcode_username TEXT");
   }
+  if (!accountCols.some((c) => c.name === "chesscom_username")) {
+    db.exec("ALTER TABLE accounts ADD COLUMN chesscom_username TEXT");
+  }
 
   return db;
 }
@@ -78,15 +82,21 @@ export interface LeetCodeCredentials {
   username: string;
 }
 
+export interface ChessComCredentials {
+  username: string;
+}
+
 export interface AppCredentials {
   github?: GitHubCredentials;
   leetcode?: LeetCodeCredentials;
+  chesscom?: ChessComCredentials;
 }
 
 interface AccountRow {
   github_access_token: string | null;
   github_username: string | null;
   leetcode_username: string | null;
+  chesscom_username: string | null;
 }
 
 function rowToCredentials(row: AccountRow): AppCredentials {
@@ -97,11 +107,14 @@ function rowToCredentials(row: AccountRow): AppCredentials {
   if (row.leetcode_username) {
     creds.leetcode = { username: row.leetcode_username };
   }
+  if (row.chesscom_username) {
+    creds.chesscom = { username: row.chesscom_username };
+  }
   return creds;
 }
 
 export function getAccount(walletAddress: string): AppCredentials | null {
-  const row = db().prepare("SELECT github_access_token, github_username, leetcode_username FROM accounts WHERE wallet_address = ?").get(walletAddress) as AccountRow | undefined;
+  const row = db().prepare("SELECT github_access_token, github_username, leetcode_username, chesscom_username FROM accounts WHERE wallet_address = ?").get(walletAddress) as AccountRow | undefined;
   if (!row) return null;
   const creds = rowToCredentials(row);
   return Object.keys(creds).length > 0 ? creds : null;
@@ -125,6 +138,14 @@ export function setAccount(walletAddress: string, creds: Partial<AppCredentials>
         leetcode_username = excluded.leetcode_username
     `).run(walletAddress, creds.leetcode.username);
   }
+  if (creds.chesscom) {
+    db().prepare(`
+      INSERT INTO accounts (wallet_address, chesscom_username)
+      VALUES (?, ?)
+      ON CONFLICT(wallet_address) DO UPDATE SET
+        chesscom_username = excluded.chesscom_username
+    `).run(walletAddress, creds.chesscom.username);
+  }
 }
 
 export function removeAccountApp(walletAddress: string, app: keyof AppCredentials) {
@@ -134,10 +155,13 @@ export function removeAccountApp(walletAddress: string, app: keyof AppCredential
   if (app === "leetcode") {
     db().prepare("UPDATE accounts SET leetcode_username = NULL WHERE wallet_address = ?").run(walletAddress);
   }
+  if (app === "chesscom") {
+    db().prepare("UPDATE accounts SET chesscom_username = NULL WHERE wallet_address = ?").run(walletAddress);
+  }
 }
 
 export function getAllAccounts(): Record<string, AppCredentials> {
-  const rows = db().prepare("SELECT wallet_address, github_access_token, github_username, leetcode_username FROM accounts").all() as (AccountRow & { wallet_address: string })[];
+  const rows = db().prepare("SELECT wallet_address, github_access_token, github_username, leetcode_username, chesscom_username FROM accounts").all() as (AccountRow & { wallet_address: string })[];
   const result: Record<string, AppCredentials> = {};
   for (const row of rows) {
     const creds = rowToCredentials(row);
