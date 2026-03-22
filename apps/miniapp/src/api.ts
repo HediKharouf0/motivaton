@@ -7,19 +7,25 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
+    const derivedShortReason =
+      typeof err.shortReason === "string"
+        ? err.shortReason
+        : typeof err.details?.inspection?.shortReason === "string"
+          ? err.details.inspection.shortReason
+          : undefined;
     const apiError = new Error(err.error || res.statusText) as Error & {
       status?: number;
       shortReason?: string;
       details?: unknown;
     };
-    Object.assign(apiError, err, { status: res.status });
+    Object.assign(apiError, err, { status: res.status, shortReason: derivedShortReason });
     throw apiError;
   }
   return res.json();
 }
 
 export interface AchievementInspection {
-  provider: "COCOON" | "HEURISTIC";
+  provider: string;
   blocked: true;
   shortReason: string;
   summary: string;

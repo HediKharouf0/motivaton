@@ -4,13 +4,23 @@ import { fetchUserEvents, type GitHubEvent } from "./events.js";
 import { fetchStravaActivities, refreshStravaTokens } from "./strava.js";
 import { getAllAccounts, setAccount, type AppCredentials } from "./store.js";
 
-type InspectionProvider = "COCOON" | "HEURISTIC";
+type InspectionProvider = "OPENAI" | "ANTHROPIC" | "DEEPSEEK" | "COCOON" | "HEURISTIC";
+type RemoteInspectionProvider = Exclude<InspectionProvider, "HEURISTIC">;
 
 export interface AchievementInspection {
-  provider: InspectionProvider;
+  provider: string;
   blocked: true;
   shortReason: string;
   summary: string;
+}
+
+interface GitHubCommitDetail {
+  sha: string;
+  message?: string;
+  additions?: number;
+  deletions?: number;
+  changedFiles?: number;
+  files?: string[];
 }
 
 interface GitHubEvidenceItem {
@@ -22,6 +32,7 @@ interface GitHubEvidenceItem {
   state?: string;
   commitCount?: number;
   commitMessages?: string[];
+  commitDetails?: GitHubCommitDetail[];
 }
 
 interface StravaEvidenceItem {
@@ -32,12 +43,21 @@ interface StravaEvidenceItem {
   movingMinutes: number;
 }
 
-type CocoonDecision = {
+type Decision = {
   blocked: boolean;
   shortReason: string;
   summary: string;
 };
 
+interface RemoteInspectorConfig {
+  provider: RemoteInspectionProvider;
+  model: string;
+  apiKey?: string;
+  requestUrl: string;
+  anthropicVersion?: string;
+}
+
+const GITHUB_API = "https://api.github.com";
 const LOW_SIGNAL_TEXTS = new Set([
   "fix",
   "fixes",
@@ -52,10 +72,34 @@ const LOW_SIGNAL_TEXTS = new Set([
   "changes",
   "work",
   "cleanup",
+  "empty",
+  "minor",
+  "quick fix",
 ]);
 
+function normalizeEnv(value: string | undefined): string {
+  return (value || "").trim();
+}
+
+function normalizeBaseUrl(value: string | undefined, fallback: string): string {
+  return normalizeEnv(value) || fallback;
+}
+
+function appendApiPath(baseUrl: string, path: string): string {
+  const normalized = baseUrl.replace(/\/$/, "");
+  if (normalized.endsWith(path)) return normalized;
+  if (normalized.endsWith("/v1") && path.startsWith("/v1/")) {
+    return `${normalized}${path.slice(3)}`;
+  }
+  return `${normalized}${path}`;
+}
+
+function getRequestedInspectorProvider(): string {
+  return normalizeEnv(process.env.AI_INSPECTOR_PROVIDER).toUpperCase();
+}
+
 function getCocoonApiUrl(): string {
-  return (process.env.COCOON_API_URL || "").trim().replace(/\/$/, "");
+  return normalizeEnv(process.env.COCOON_API_URL).replace(/\/$/, "");
 }
 
 function getCocoonRequestUrl(): string {
@@ -65,15 +109,108 @@ function getCocoonRequestUrl(): string {
 }
 
 function getCocoonModel(): string {
-  return (process.env.COCOON_MODEL || "").trim();
+  return normalizeEnv(process.env.COCOON_MODEL);
 }
 
 function getCocoonApiKey(): string {
-  return (process.env.COCOON_API_KEY || "").trim();
+  return normalizeEnv(process.env.COCOON_API_KEY);
 }
 
 function isCocoonConfigured() {
   return getCocoonApiUrl() !== "" && getCocoonModel() !== "";
+}
+
+function getDefaultModel(provider: RemoteInspectionProvider): string {
+  switch (provider) {
+    case "OPENAI":
+      return "gpt-5.4";
+    case "ANTHROPIC":
+      return "claude-sonnet-4-20250514";
+    case "DEEPSEEK":
+      return "deepseek-chat";
+    case "COCOON":
+      return getCocoonModel();
+  }
+}
+
+function getConfiguredModel(provider: RemoteInspectionProvider): string {
+  const shared = normalizeEnv(process.env.AI_INSPECTOR_MODEL);
+  if (provider === "OPENAI") {
+    return normalizeEnv(process.env.OPENAI_INSPECTOR_MODEL) || shared || getDefaultModel(provider);
+  }
+  if (provider === "ANTHROPIC") {
+    return normalizeEnv(process.env.ANTHROPIC_INSPECTOR_MODEL) || shared || getDefaultModel(provider);
+  }
+  if (provider === "DEEPSEEK") {
+    return normalizeEnv(process.env.DEEPSEEK_INSPECTOR_MODEL) || shared || getDefaultModel(provider);
+  }
+  return getDefaultModel(provider);
+}
+
+function getPrimaryInspectorConfig(): RemoteInspectorConfig | null {
+  const requested = getRequestedInspectorProvider();
+
+  const candidates: RemoteInspectionProvider[] =
+    requested === "OPENAI" || requested === "ANTHROPIC" || requested === "DEEPSEEK"
+      ? [requested]
+      : ["OPENAI", "ANTHROPIC", "DEEPSEEK"];
+
+  for (const provider of candidates) {
+    if (provider === "OPENAI") {
+      const apiKey = normalizeEnv(process.env.OPENAI_API_KEY);
+      if (!apiKey) continue;
+      return {
+        provider,
+        apiKey,
+        model: getConfiguredModel(provider),
+        requestUrl: appendApiPath(
+          normalizeBaseUrl(process.env.OPENAI_BASE_URL, "https://api.openai.com"),
+          "/v1/chat/completions",
+        ),
+      };
+    }
+
+    if (provider === "ANTHROPIC") {
+      const apiKey = normalizeEnv(process.env.ANTHROPIC_API_KEY);
+      if (!apiKey) continue;
+      return {
+        provider,
+        apiKey,
+        model: getConfiguredModel(provider),
+        requestUrl: appendApiPath(
+          normalizeBaseUrl(process.env.ANTHROPIC_BASE_URL, "https://api.anthropic.com"),
+          "/v1/messages",
+        ),
+        anthropicVersion: normalizeEnv(process.env.ANTHROPIC_VERSION) || "2023-06-01",
+      };
+    }
+
+    if (provider === "DEEPSEEK") {
+      const apiKey = normalizeEnv(process.env.DEEPSEEK_API_KEY);
+      if (!apiKey) continue;
+      return {
+        provider,
+        apiKey,
+        model: getConfiguredModel(provider),
+        requestUrl: appendApiPath(
+          normalizeBaseUrl(process.env.DEEPSEEK_BASE_URL, "https://api.deepseek.com"),
+          "/chat/completions",
+        ),
+      };
+    }
+  }
+
+  return null;
+}
+
+function getCocoonInspectorConfig(): RemoteInspectorConfig | null {
+  if (!isCocoonConfigured()) return null;
+  return {
+    provider: "COCOON",
+    apiKey: getCocoonApiKey() || undefined,
+    model: getConfiguredModel("COCOON"),
+    requestUrl: getCocoonRequestUrl(),
+  };
 }
 
 function normalizeAddress(addr: string): string {
@@ -128,19 +265,64 @@ function getLinkedAccount(walletAddress: string): { wallet: string; creds: AppCr
 }
 
 function getChallengeParts(challenge: OnChainChallenge) {
-  const [app = "", action = ""] = challenge.challengeId.split(":");
-  return { app, action };
+  const [app = "", action = "", rawCount = "0"] = challenge.challengeId.split(":");
+  return { app, action, count: Number.parseInt(rawCount, 10) || 0 };
 }
 
-function extractGitHubEvidence(events: GitHubEvent[], action: string, since: Date): GitHubEvidenceItem[] {
+async function fetchGitHubCommitDetail(
+  repo: string,
+  sha: string,
+  token: string,
+): Promise<GitHubCommitDetail | null> {
+  const resp = await fetch(`${GITHUB_API}/repos/${repo}/commits/${sha}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+
+  if (!resp.ok) {
+    return null;
+  }
+
+  const data = (await resp.json()) as {
+    sha?: string;
+    commit?: { message?: string };
+    stats?: { additions?: number; deletions?: number; total?: number };
+    files?: Array<{ filename?: string }>;
+  };
+
+  return {
+    sha: data.sha || sha,
+    message: compactText(data.commit?.message, 90),
+    additions: typeof data.stats?.additions === "number" ? data.stats.additions : undefined,
+    deletions: typeof data.stats?.deletions === "number" ? data.stats.deletions : undefined,
+    changedFiles: Array.isArray(data.files) ? data.files.length : undefined,
+    files: Array.isArray(data.files)
+      ? data.files
+          .map((file) => compactText(file.filename, 40))
+          .filter((value): value is string => Boolean(value))
+          .slice(0, 4)
+      : undefined,
+  };
+}
+
+async function extractGitHubEvidence(
+  events: GitHubEvent[],
+  action: string,
+  since: Date,
+  token: string,
+): Promise<GitHubEvidenceItem[]> {
   const evidence: GitHubEvidenceItem[] = [];
+  let commitLookupBudget = 4;
 
   for (const rawEvent of events) {
     const event = rawEvent as GitHubEvent & {
       repo?: { name?: string };
       payload: Record<string, unknown> & {
         action?: string;
-        commits?: Array<{ message?: string }>;
+        commits?: Array<{ sha?: string; message?: string }>;
         issue?: { title?: string; body?: string };
         pull_request?: { title?: string; body?: string; merged?: boolean };
         review?: { body?: string; state?: string };
@@ -152,15 +334,43 @@ function extractGitHubEvidence(events: GitHubEvent[], action: string, since: Dat
     if (new Date(event.created_at) < since) continue;
 
     if (action === "COMMIT" && event.type === "PushEvent") {
+      const repo = event.repo?.name || "Unknown repo";
       const commitMessages = Array.isArray(event.payload.commits)
         ? event.payload.commits
             .map((commit) => compactText(commit.message, 90))
             .filter((value): value is string => Boolean(value))
         : [];
 
+      const commitRefs = Array.isArray(event.payload.commits)
+        ? event.payload.commits
+            .flatMap((commit) => {
+              const sha = compactText(commit.sha, 40);
+              if (!sha) return [];
+              return [
+                {
+                  sha,
+                  message: compactText(commit.message, 90),
+                },
+              ];
+            })
+        : [];
+
+      let commitDetails: GitHubCommitDetail[] = [];
+      if (commitLookupBudget > 0 && commitRefs.length > 0 && repo !== "Unknown repo") {
+        const refs = commitRefs.slice(0, commitLookupBudget);
+        commitLookupBudget -= refs.length;
+        const lookedUp = await Promise.all(
+          refs.map(async (commit) => {
+            const detail = await fetchGitHubCommitDetail(repo, commit.sha, token).catch(() => null);
+            return detail ?? { sha: commit.sha, message: commit.message };
+          }),
+        );
+        commitDetails = lookedUp.filter((item): item is GitHubCommitDetail => Boolean(item));
+      }
+
       evidence.push({
         kind: "commit",
-        repo: event.repo?.name || "Unknown repo",
+        repo,
         createdAt: event.created_at,
         commitCount:
           typeof event.payload.size === "number"
@@ -169,6 +379,7 @@ function extractGitHubEvidence(events: GitHubEvent[], action: string, since: Dat
               ? commitMessages.length
               : 1,
         commitMessages,
+        commitDetails,
       });
     }
 
@@ -262,18 +473,33 @@ function heuristicGitHubBlock(evidence: GitHubEvidenceItem[]): AchievementInspec
   if (evidence.length === 0) return null;
 
   const commitMessages = evidence.flatMap((item) => item.commitMessages || []);
+  const commitDetails = evidence.flatMap((item) => item.commitDetails || []);
   const titles = evidence.map((item) => item.title).filter((value): value is string => Boolean(value));
+
+  if (commitDetails.length > 0) {
+    const allZeroDiff = commitDetails.every(
+      (detail) => (detail.additions ?? 0) + (detail.deletions ?? 0) === 0 && (detail.changedFiles ?? 0) === 0,
+    );
+    if (allZeroDiff) {
+      return block("HEURISTIC", "No real code changes", "Recent GitHub commits show no file changes.");
+    }
+
+    const allTinyDiff = commitDetails.every((detail) => {
+      const totalDiff = (detail.additions ?? 0) + (detail.deletions ?? 0);
+      return totalDiff <= 2 && (detail.changedFiles ?? 0) <= 1;
+    });
+
+    if (allTinyDiff && commitDetails.every((detail) => isLowSignalText(detail.message))) {
+      return block("HEURISTIC", "Commits look empty", "Recent GitHub commits look tiny and low-signal.");
+    }
+  }
 
   if (
     commitMessages.length > 0 &&
     commitMessages.every((message) => isLowSignalText(message)) &&
     titles.every((title) => isLowSignalText(title))
   ) {
-    return block(
-      "HEURISTIC",
-      "Messages too generic",
-      "Recent GitHub text looks too low-signal to count.",
-    );
+    return block("HEURISTIC", "Messages too generic", "Recent GitHub text looks too generic to count.");
   }
 
   return null;
@@ -305,11 +531,7 @@ function heuristicStravaBlock(action: string, evidence: StravaEvidenceItem[]): A
   );
 
   if (!hasMeaningfulActivity) {
-    return block(
-      "HEURISTIC",
-      "Activity too small",
-      "Recent Strava activity is too small to count.",
-    );
+    return block("HEURISTIC", "Activity too small", "Recent Strava activity is too small to count.");
   }
 
   return null;
@@ -325,7 +547,7 @@ function extractDecisionJson(raw: string): string {
   return trimmed;
 }
 
-function parseCocoonDecision(raw: string): CocoonDecision | null {
+function parseDecision(raw: string): Decision | null {
   try {
     const parsed = JSON.parse(extractDecisionJson(raw)) as {
       blocked?: unknown;
@@ -342,8 +564,8 @@ function parseCocoonDecision(raw: string): CocoonDecision | null {
         typeof parsed.summary === "string" && parsed.summary.trim()
           ? parsed.summary.trim()
           : parsed.blocked
-            ? "Cocoon flagged the achievement."
-            : "No fishy signal found.",
+            ? "Suspicious activity was flagged."
+            : "No suspicious signal found.",
     };
   } catch {
     return null;
@@ -364,24 +586,151 @@ function getMessageContent(content: unknown): string {
     .trim();
 }
 
-async function askCocoon(payload: Record<string, unknown>): Promise<AchievementInspection | null> {
-  if (!isCocoonConfigured()) return null;
+function buildSystemPrompt(): string {
+  return [
+    "You are a last-layer fraud detector for productivity challenges.",
+    "You are never allowed to approve or grant a reward.",
+    "The ordinary verifier already decides progress.",
+    "You only decide whether the evidence is fishy enough to block counting it.",
+    "Block only for suspicious, empty, spammy, trivially tiny, or obviously low-signal achievements.",
+    "If the work looks real, blocked must be false.",
+    "Return JSON only with keys blocked, shortReason, summary.",
+    "shortReason must be 2 to 6 words.",
+    "summary must stay under 18 words.",
+  ].join(" ");
+}
 
-  const resp = await fetch(getCocoonRequestUrl(), {
+function buildInspectionPayload(
+  appLabel: string,
+  action: string,
+  challenge: OnChainChallenge,
+  evidence: GitHubEvidenceItem[] | StravaEvidenceItem[],
+) {
+  return {
+    app: appLabel,
+    action,
+    challengeId: challenge.challengeId,
+    totalCheckpoints: challenge.totalCheckpoints,
+    claimedCount: challenge.claimedCount,
+    createdAt: new Date(challenge.createdAt * 1000).toISOString(),
+    evidence,
+  };
+}
+
+async function askOpenAI(config: RemoteInspectorConfig, payload: Record<string, unknown>): Promise<Decision | null> {
+  const resp = await fetch(config.requestUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      ...(getCocoonApiKey() ? { Authorization: `Bearer ${getCocoonApiKey()}` } : {}),
+      Authorization: `Bearer ${config.apiKey}`,
     },
     body: JSON.stringify({
-      model: getCocoonModel(),
+      model: config.model,
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: buildSystemPrompt(),
+        },
+        {
+          role: "user",
+          content: JSON.stringify(payload),
+        },
+      ],
+    }),
+  });
+
+  if (!resp.ok) {
+    throw new Error(`OpenAI API ${resp.status}: ${await resp.text()}`);
+  }
+
+  const data = (await resp.json()) as {
+    choices?: Array<{ message?: { content?: unknown } }>;
+  };
+  return parseDecision(getMessageContent(data.choices?.[0]?.message?.content));
+}
+
+async function askAnthropic(config: RemoteInspectorConfig, payload: Record<string, unknown>): Promise<Decision | null> {
+  const resp = await fetch(config.requestUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": config.apiKey || "",
+      "anthropic-version": config.anthropicVersion || "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: config.model,
+      system: buildSystemPrompt(),
+      max_tokens: 180,
+      messages: [
+        {
+          role: "user",
+          content: JSON.stringify(payload),
+        },
+      ],
+    }),
+  });
+
+  if (!resp.ok) {
+    throw new Error(`Anthropic API ${resp.status}: ${await resp.text()}`);
+  }
+
+  const data = (await resp.json()) as {
+    content?: unknown;
+  };
+  return parseDecision(getMessageContent(data.content));
+}
+
+async function askDeepSeek(config: RemoteInspectorConfig, payload: Record<string, unknown>): Promise<Decision | null> {
+  const resp = await fetch(config.requestUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: config.model,
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: buildSystemPrompt(),
+        },
+        {
+          role: "user",
+          content: JSON.stringify(payload),
+        },
+      ],
+    }),
+  });
+
+  if (!resp.ok) {
+    throw new Error(`DeepSeek API ${resp.status}: ${await resp.text()}`);
+  }
+
+  const data = (await resp.json()) as {
+    choices?: Array<{ message?: { content?: unknown } }>;
+  };
+  return parseDecision(getMessageContent(data.choices?.[0]?.message?.content));
+}
+
+async function askCocoon(config: RemoteInspectorConfig, payload: Record<string, unknown>): Promise<Decision | null> {
+  const resp = await fetch(config.requestUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+    },
+    body: JSON.stringify({
+      model: config.model,
       temperature: 0.1,
       max_tokens: 180,
       messages: [
         {
           role: "system",
-          content:
-            "You are a last-layer fraud detector for productivity challenges. You are not allowed to approve rewards. You only decide whether the evidence looks fishy enough to block counting it. Return JSON only with keys blocked, shortReason, summary. blocked must be true only for suspicious or clearly low-signal achievements. shortReason must be 2 to 6 words. summary must stay under 18 words.",
+          content: buildSystemPrompt(),
         },
         {
           role: "user",
@@ -398,16 +747,62 @@ async function askCocoon(payload: Record<string, unknown>): Promise<AchievementI
   const data = (await resp.json()) as {
     choices?: Array<{ message?: { content?: unknown } }>;
   };
-  const raw = getMessageContent(data.choices?.[0]?.message?.content);
-  const decision = parseCocoonDecision(raw);
+  return parseDecision(getMessageContent(data.choices?.[0]?.message?.content));
+}
+
+async function askRemoteInspector(
+  config: RemoteInspectorConfig,
+  payload: Record<string, unknown>,
+): Promise<AchievementInspection | null> {
+  const decision =
+    config.provider === "OPENAI"
+      ? await askOpenAI(config, payload)
+      : config.provider === "ANTHROPIC"
+        ? await askAnthropic(config, payload)
+        : config.provider === "DEEPSEEK"
+          ? await askDeepSeek(config, payload)
+          : await askCocoon(config, payload);
 
   if (!decision || !decision.blocked) return null;
 
   return {
-    provider: "COCOON",
+    provider: config.provider,
     blocked: true,
     shortReason: decision.shortReason,
     summary: decision.summary,
+  };
+}
+
+async function runRemoteInspectors(payload: Record<string, unknown>): Promise<AchievementInspection | null> {
+  const inspectors = [getPrimaryInspectorConfig(), getCocoonInspectorConfig()].filter(
+    (config): config is RemoteInspectorConfig => Boolean(config),
+  );
+
+  if (inspectors.length === 0) return null;
+
+  const settled = await Promise.allSettled(
+    inspectors.map(async (config) => {
+      try {
+        return await askRemoteInspector(config, payload);
+      } catch (error) {
+        console.error(`[ai-inspector] ${config.provider} inspection failed:`, error);
+        return null;
+      }
+    }),
+  );
+
+  const blocked = settled
+    .flatMap((item) => (item.status === "fulfilled" && item.value ? [item.value] : []));
+
+  if (blocked.length === 0) return null;
+  if (blocked.length === 1) return blocked[0];
+
+  const preferred = blocked.find((item) => item.provider !== "COCOON") ?? blocked[0];
+  return {
+    provider: blocked.map((item) => item.provider).join("+"),
+    blocked: true,
+    shortReason: preferred.shortReason,
+    summary: `${blocked.map((item) => item.provider).join(" + ")} flagged this achievement.`,
   };
 }
 
@@ -417,20 +812,17 @@ async function inspectGitHubAchievement(challenge: OnChainChallenge): Promise<Ac
 
   const { action } = getChallengeParts(challenge);
   const events = await fetchUserEvents(linked.creds.github.username, linked.creds.github.accessToken);
-  const evidence = extractGitHubEvidence(events, action, new Date(challenge.createdAt * 1000));
+  const evidence = await extractGitHubEvidence(
+    events,
+    action,
+    new Date(challenge.createdAt * 1000),
+    linked.creds.github.accessToken,
+  );
 
   const heuristicBlock = heuristicGitHubBlock(evidence);
   if (heuristicBlock) return heuristicBlock;
 
-  return askCocoon({
-    app: "GitHub",
-    action,
-    challengeId: challenge.challengeId,
-    evidence,
-  }).catch((error) => {
-    console.error("[cocoon] GitHub inspection failed:", error);
-    return null;
-  });
+  return runRemoteInspectors(buildInspectionPayload("GitHub", action, challenge, evidence));
 }
 
 async function inspectStravaAchievement(challenge: OnChainChallenge): Promise<AchievementInspection | null> {
@@ -459,15 +851,7 @@ async function inspectStravaAchievement(challenge: OnChainChallenge): Promise<Ac
   const heuristicBlock = heuristicStravaBlock(action, evidence);
   if (heuristicBlock) return heuristicBlock;
 
-  return askCocoon({
-    app: "Strava",
-    action,
-    challengeId: challenge.challengeId,
-    evidence,
-  }).catch((error) => {
-    console.error("[cocoon] Strava inspection failed:", error);
-    return null;
-  });
+  return runRemoteInspectors(buildInspectionPayload("Strava", action, challenge, evidence));
 }
 
 export async function inspectChallengeAchievement(challenge: OnChainChallenge): Promise<AchievementInspection | null> {
@@ -484,7 +868,7 @@ export async function inspectChallengeAchievement(challenge: OnChainChallenge): 
 
     return null;
   } catch (error) {
-    console.error("[cocoon] Achievement inspection failed:", error);
+    console.error("[ai-inspector] Achievement inspection failed:", error);
     return null;
   }
 }

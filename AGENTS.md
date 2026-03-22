@@ -381,3 +381,25 @@ Key files:
 Follow-up gaps:
 - The veto-only inspection currently applies to GitHub and Strava evidence only.
 - Cocoon only activates when `COCOON_API_URL` and `COCOON_MODEL` are configured for the backend; otherwise the inspection layer stays effectively inactive except for lightweight heuristics.
+
+### 2026-03-22 - Dual AI Achievement Inspection With Fallback
+
+Summary:
+- Upgraded the veto-only inspection layer so it can run Cocoon together with a stronger external model provider such as OpenAI, Anthropic, or DeepSeek against the same GitHub or Strava evidence.
+- Kept the product rule unchanged: the normal verifier still decides progress and payout eligibility, while the AI layer can only block suspicious achievements with a very short reason.
+- Strengthened GitHub inspection evidence by enriching recent commit events with commit-level diff stats when available, so obviously empty or tiny commits are easier to flag before claim proof signing.
+
+Why it matters now:
+- The anti-bullshit layer no longer depends on Cocoon alone and can keep working if one model provider fails, times out, or is not configured.
+- Suspicious achievements now have both stronger evidence and better odds of surfacing a useful short refusal message in the miniapp instead of silently passing or failing generically.
+
+Key files:
+- `apps/backend/src/cocoon.ts`
+- `apps/backend/src/routes/verify.ts`
+- `apps/miniapp/src/api.ts`
+- `apps/miniapp/src/pages/ChallengeDetail.tsx`
+- `AGENTS.md`
+
+Follow-up gaps:
+- The dual-inspector path still depends on backend environment configuration for at least one external provider plus optional Cocoon support.
+- The richer GitHub evidence is strongest for repositories where commit detail lookups are accessible from the linked token and event payload.
