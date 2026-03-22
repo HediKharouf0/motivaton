@@ -50,7 +50,7 @@ authRouter.post("/github/start", (req, res) => {
   const params = new URLSearchParams({
     client_id: getGitHubClientId(),
     redirect_uri: `${process.env.PUBLIC_URL || ""}/api/auth/github/callback`,
-    scope: "read:user",
+    scope: "read:user repo",
     state,
   });
 

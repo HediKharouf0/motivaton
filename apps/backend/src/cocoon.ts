@@ -21,6 +21,7 @@ interface GitHubCommitDetail {
   deletions?: number;
   changedFiles?: number;
   files?: string[];
+  patchSnippets?: string[];
 }
 
 interface GitHubEvidenceItem {
@@ -290,7 +291,7 @@ async function fetchGitHubCommitDetail(
     sha?: string;
     commit?: { message?: string };
     stats?: { additions?: number; deletions?: number; total?: number };
-    files?: Array<{ filename?: string }>;
+    files?: Array<{ filename?: string; patch?: string }>;
   };
 
   return {
@@ -304,6 +305,16 @@ async function fetchGitHubCommitDetail(
           .map((file) => compactText(file.filename, 40))
           .filter((value): value is string => Boolean(value))
           .slice(0, 4)
+      : undefined,
+    patchSnippets: Array.isArray(data.files)
+      ? data.files
+          .map((file) => {
+            const filename = compactText(file.filename, 40) || "file";
+            const patch = compactText(file.patch, 220);
+            return patch ? `${filename}: ${patch}` : undefined;
+          })
+          .filter((value): value is string => Boolean(value))
+          .slice(0, 3)
       : undefined,
   };
 }
@@ -491,6 +502,15 @@ function heuristicGitHubBlock(evidence: GitHubEvidenceItem[]): AchievementInspec
 
     if (allTinyDiff && commitDetails.every((detail) => isLowSignalText(detail.message))) {
       return block("HEURISTIC", "Commits look empty", "Recent GitHub commits look tiny and low-signal.");
+    }
+
+    const noVisibleContent = commitDetails.every(
+      (detail) =>
+        (!detail.files || detail.files.length === 0) &&
+        (!detail.patchSnippets || detail.patchSnippets.length === 0),
+    );
+    if (noVisibleContent && commitDetails.every((detail) => isLowSignalText(detail.message))) {
+      return block("HEURISTIC", "No useful commit content", "Recent GitHub commits expose no useful code change evidence.");
     }
   }
 
