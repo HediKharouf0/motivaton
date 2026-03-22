@@ -348,9 +348,10 @@ export function ChallengeDetail() {
   const actionLabel = formatActionLabel(action);
   const expired = Date.now() / 1000 > challenge.endDate;
   const fullyCompleted = backendProgress >= challenge.totalCheckpoints;
+  const allClaimed = challenge.claimedCount >= challenge.totalCheckpoints;
   const progressPct = Math.min(100, Math.round((backendProgress / challenge.totalCheckpoints) * 100));
-  const status = !challenge.active
-    ? backendProgress >= challenge.totalCheckpoints
+  const status = !challenge.active || allClaimed
+    ? fullyCompleted || allClaimed
       ? "completed"
       : "closed"
     : fullyCompleted
@@ -371,7 +372,6 @@ export function ChallengeDetail() {
   const showOAuthConnectPrompt = isBeneficiary && challenge.active && !expired && oauthAppKey !== null && !appConnected;
   const showOAuthConnectedState = isBeneficiary && challenge.active && oauthAppKey !== null && appConnected;
   const showOAuthEndedWarning = isBeneficiary && challenge.active && expired && oauthAppKey !== null && !appConnected;
-  const allClaimed = challenge.claimedCount >= challenge.totalCheckpoints;
   const canClaimRewards = isBeneficiary && challenge.active && !allClaimed && (expired || fullyCompleted);
   const showManualVerificationInput = canClaimRewards && appKey === "DUOLINGO";
 
