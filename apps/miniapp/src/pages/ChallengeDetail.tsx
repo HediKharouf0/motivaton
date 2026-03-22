@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTonAddress, useTonConnectUI } from "@tonconnect/ui-react";
 import {
@@ -205,8 +205,9 @@ export function ChallengeDetail() {
     locationState?.challenge && locationState.challenge.index === idx
       ? locationState.challenge
       : cachedChallenge;
+  const loadRequestIdRef = useRef(0);
 
-  const [challenge, setChallenge] = useState<OnChainChallenge | null>(prefetchedChallenge);
+  const [localChallenge, setLocalChallenge] = useState<IndexedChallenge | null>(prefetchedChallenge);
   const [checkpointMap, setCheckpointMap] = useState<boolean[]>(
     prefetchedChallenge ? buildClaimedMap(prefetchedChallenge) : [],
   );
@@ -233,10 +234,11 @@ export function ChallengeDetail() {
   const [backendClaimed, setBackendClaimed] = useState<boolean>(
     prefetchedChallenge ? claimedMap[String(prefetchedChallenge.index)] ?? false : false,
   );
+  const activeChallenge = localChallenge?.index === idx ? localChallenge : prefetchedChallenge;
 
   useEffect(() => {
     setLoading(prefetchedChallenge === null);
-    setChallenge(prefetchedChallenge);
+    setLocalChallenge(prefetchedChallenge);
     setCheckpointMap(prefetchedChallenge ? buildClaimedMap(prefetchedChallenge) : []);
     setUserContribution(null);
     setCreatorContribution(null);
@@ -256,14 +258,16 @@ export function ChallengeDetail() {
       forceRefresh: prefetchedChallenge === null,
       showBlockingLoader: prefetchedChallenge === null,
     });
-  }, [idx, userAddress]);
+  }, [idx, userAddress, prefetchedChallenge, progressMap, claimedMap]);
 
   async function loadChallenge(options?: {
     forceRefresh?: boolean;
-    seedChallenge?: OnChainChallenge | null;
+    seedChallenge?: IndexedChallenge | null;
     showBlockingLoader?: boolean;
   }) {
-    const showBlockingLoader = options?.showBlockingLoader ?? challenge === null;
+    const requestId = loadRequestIdRef.current + 1;
+    loadRequestIdRef.current = requestId;
+    const showBlockingLoader = options?.showBlockingLoader ?? activeChallenge == null;
 
     if (showBlockingLoader) {
       setLoading(true);
@@ -272,12 +276,15 @@ export function ChallengeDetail() {
     setError("");
 
     try {
-      let nextChallenge = options?.seedChallenge ?? challenge;
+      let nextChallenge = options?.seedChallenge ?? activeChallenge;
       if (options?.forceRefresh || !nextChallenge) {
-        nextChallenge = await getChallenge(idx);
+        const freshChallenge = await getChallenge(idx);
+        nextChallenge = freshChallenge ? { ...freshChallenge, index: idx } : null;
       }
 
-      setChallenge(nextChallenge);
+      if (loadRequestIdRef.current !== requestId) return;
+
+      setLocalChallenge(nextChallenge);
 
       if (!nextChallenge) {
         setCheckpointMap([]);
@@ -311,7 +318,9 @@ export function ChallengeDetail() {
         progressPromise,
       ]);
 
-      storeChallenge({ ...nextChallenge, index: idx }, progressData.progress, progressData.claimed);
+      if (loadRequestIdRef.current !== requestId) return;
+
+      storeChallenge(nextChallenge, progressData.progress, progressData.claimed);
       setCheckpointMap(buildClaimedMap(nextChallenge));
       setCreatorContribution(creatorStake);
       setUserContribution(userAddress ? currentUserStake : null);
@@ -319,9 +328,10 @@ export function ChallengeDetail() {
       setBackendClaimed(progressData.claimed);
       setAuthStatus(auth);
     } catch (loadError: any) {
+      if (loadRequestIdRef.current !== requestId) return;
       setError(loadError.message);
     } finally {
-      if (showBlockingLoader) {
+      if (showBlockingLoader && loadRequestIdRef.current === requestId) {
         setLoading(false);
       }
     }
@@ -573,14 +583,15 @@ export function ChallengeDetail() {
     return renderFallbackState("loading", "Loading challenge", "Fetching on-chain challenge data...");
   }
 
-  if (error && !challenge) {
+  if (error && !activeChallenge) {
     return renderFallbackState("error", "Could not load challenge", error);
   }
 
-  if (!challenge) {
+  if (!activeChallenge) {
     return renderFallbackState("empty", "Challenge not found", "The contract did not return a challenge for this index.");
   }
 
+  const challenge = activeChallenge;
   const { app: appKey, action } = parseChallengeId(challenge.challengeId);
   const appLabel = APP_LABELS[appKey as keyof typeof APP_LABELS] ?? appKey;
   const actionLabel = formatActionLabel(action);
