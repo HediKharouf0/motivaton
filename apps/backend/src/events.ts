@@ -47,7 +47,7 @@ function extractActions(event: GitHubEvent): ActionEntries[] {
     case "PullRequestEvent":
       if (payload.action === "opened") {
         results.push({ action: "CREATE_PR", entries: [{ id: event.id, count: 1 }] });
-      } else if (payload.action === "closed" && (payload.pull_request as { merged?: boolean })?.merged) {
+      } else if (payload.action === "merged" || (payload.action === "closed" && (payload.pull_request as { merged?: boolean })?.merged)) {
         results.push({ action: "MERGE_PR", entries: [{ id: event.id, count: 1 }] });
       }
       break;
