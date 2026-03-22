@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+
 import { useNavigate } from "react-router-dom";
 import { useTonConnectUI, useTonAddress } from "@tonconnect/ui-react";
 import {
@@ -7,7 +8,6 @@ import {
   APP_LABELS,
   type AppAction,
   buildChallengeId,
-  formatActionLabel,
 } from "../types/challenge";
 import {
   buildCreateChallengeBody,
@@ -34,7 +34,6 @@ export function CreateChallenge() {
   const [amount, setAmount] = useState("");
   const [whoIsPaid, setWhoIsPaid] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [duolingoUsername, setDuolingoUsername] = useState("");
   const [unlisted, setUnlisted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submissionStatus, setSubmissionStatus] = useState("");
@@ -281,19 +280,6 @@ export function CreateChallenge() {
             </span>
           </label>
 
-          {app === App.Duolingo && (
-            <div className="form-group form-group-spaced">
-              <label className="form-label">Duolingo username</label>
-              <input
-                className="form-input"
-                type="text"
-                placeholder="Your Duolingo username"
-                value={duolingoUsername}
-                onChange={(e) => setDuolingoUsername(e.target.value)}
-              />
-              <p className="field-hint">Used by the verifier flow. The backend and contract rules still need to bind this value safely.</p>
-            </div>
-          )}
         </section>
 
         <aside className="surface surface-accent summary-panel challenge-summary-panel">

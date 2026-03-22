@@ -1,43 +1,32 @@
 /** Supported productivity apps */
 export enum App {
   Github = "GITHUB",
-  Duolingo = "DUOLINGO",
 }
 
 /** Actions available per app */
 export enum GithubAction {
   Commit = "COMMIT",
-  PullRequest = "PR",
-  Issue = "ISSUE",
+  CreatePR = "CREATE_PR",
+  MergePR = "MERGE_PR",
+  OpenIssue = "OPEN_ISSUE",
   Review = "REVIEW",
 }
 
-export enum DuolingoAction {
-  CompleteLesson = "COMPLETE_LESSON",
-  EarnPoints = "EARN_POINTS",
-  MaintainStreak = "MAINTAIN_STREAK",
-}
-
-export type AppAction = GithubAction | DuolingoAction;
+export type AppAction = GithubAction;
 
 /** Map from App to its available actions */
 export const APP_ACTIONS: Record<App, { value: AppAction; label: string }[]> = {
   [App.Github]: [
     { value: GithubAction.Commit, label: "Commit" },
-    { value: GithubAction.PullRequest, label: "Pull Request" },
-    { value: GithubAction.Issue, label: "Open Issue" },
+    { value: GithubAction.CreatePR, label: "Create Pull Request" },
+    { value: GithubAction.MergePR, label: "Merge Pull Request" },
+    { value: GithubAction.OpenIssue, label: "Open Issue" },
     { value: GithubAction.Review, label: "Code Review" },
-  ],
-  [App.Duolingo]: [
-    { value: DuolingoAction.CompleteLesson, label: "Complete Lesson" },
-    { value: DuolingoAction.EarnPoints, label: "Earn Points" },
-    { value: DuolingoAction.MaintainStreak, label: "Maintain Streak" },
   ],
 };
 
 export const APP_LABELS: Record<App, string> = {
   [App.Github]: "GitHub",
-  [App.Duolingo]: "Duolingo",
 };
 
 /** Challenge as submitted from the form */
