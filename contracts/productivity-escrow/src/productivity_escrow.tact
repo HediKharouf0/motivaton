@@ -52,7 +52,7 @@ contract ProductivityEscrow with Deployable, Ownable {
     feeWalletA: Address;
     feeWalletB: Address;
 
-    nonce: Int as uint32 = 0;
+    nonce: Int as uint32 = 15;
 
     init(owner: Address, verifierPublicKey: Int, feeWalletA: Address, feeWalletB: Address, nonce: Int) {
         self.owner = owner;

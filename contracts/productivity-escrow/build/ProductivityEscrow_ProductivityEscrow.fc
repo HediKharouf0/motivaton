@@ -542,7 +542,7 @@ builder $ProductivityEscrow$_store(builder build_0, (slice, int, int, cell, cell
 ;;
 
 (slice, int, int, cell, cell, slice, slice, int) $ProductivityEscrow$_contract_init(slice $owner, int $verifierPublicKey, slice $feeWalletA, slice $feeWalletB, int $nonce) impure inline {
-    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB, $self'nonce)) = (null(), null(), 0, null(), null(), null(), null(), 0);
+    var (($self'owner, $self'verifierPublicKey, $self'challengeCount, $self'challenges, $self'sponsorContributions, $self'feeWalletA, $self'feeWalletB, $self'nonce)) = (null(), null(), 0, null(), null(), null(), null(), 15);
     $self'owner = $owner;
     $self'verifierPublicKey = $verifierPublicKey;
     $self'feeWalletA = $feeWalletA;

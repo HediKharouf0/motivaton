@@ -185,6 +185,13 @@ async function eventsProgressJob(): Promise<(OnChainChallenge & { index: number 
           continue;
         }
 
+        // Log timestamps for debugging
+        const sinceTs = since.toISOString();
+        for (const sub of submissions.slice(0, 5)) {
+          const subTs = new Date(Number(sub.timestamp) * 1000).toISOString();
+          console.log(`[cron] [LEETCODE] #${c.index}: sub "${sub.title}" ts=${subTs} since=${sinceTs} ${new Date(Number(sub.timestamp) * 1000) >= since ? "PASS" : "SKIP"}`);
+        }
+
         const eventsByAction = await extractLeetCodeEvents(submissions, since);
         const entries = eventsByAction[action] ?? [];
 
