@@ -7,15 +7,29 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || res.statusText);
+    const apiError = new Error(err.error || res.statusText) as Error & {
+      status?: number;
+      shortReason?: string;
+      details?: unknown;
+    };
+    Object.assign(apiError, err, { status: res.status });
+    throw apiError;
   }
   return res.json();
+}
+
+export interface AchievementInspection {
+  provider: "COCOON" | "HEURISTIC";
+  blocked: true;
+  shortReason: string;
+  summary: string;
 }
 
 export interface VerifyCheckRequest {
   app: string;
   action: string;
   count: number;
+  challengeIdx?: number;
   duolingoUsername?: string;
 }
 
@@ -24,6 +38,9 @@ export interface VerificationResult {
   currentCount: number;
   targetCount: number;
   message: string;
+  blocked?: boolean;
+  shortReason?: string;
+  inspection?: AchievementInspection | null;
 }
 
 export interface SignProofRequest {

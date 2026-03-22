@@ -357,3 +357,27 @@ Key files:
 Follow-up gaps:
 - The redesign passes miniapp typecheck and build, but it still needs real Telegram-device review for safe-area feel, TonConnect modal ergonomics, and dense checkpoint lists on smaller phones.
 - Repo-wide typing still depends on unrelated backend state outside this UI pass.
+
+### 2026-03-22 - Cocoon Added As Veto-Only Achievement Inspector
+
+Summary:
+- Added a backend Cocoon / TON-AI inspection layer for GitHub and Strava that runs only after the normal verifier already says an achievement has been matched.
+- The new inspection never approves rewards on its own; it can only block suspicious achievements and return a very short reason.
+- Updated the challenge detail screen and shared API types so blocked achievements surface as a short veto message instead of a generic failure or AI approval state.
+
+Why it matters now:
+- Reward eligibility still comes from the ordinary challenge verification flow, which keeps AI out of the role of payout authority.
+- The product now has a last-layer anti-bullshit screen for obviously fishy commits or weak Strava activities before claim proof signing proceeds.
+
+Key files:
+- `apps/backend/src/cocoon.ts`
+- `apps/backend/src/routes/verify.ts`
+- `apps/backend/src/verifiers/types.ts`
+- `apps/backend/src/better-sqlite3.d.ts`
+- `apps/miniapp/src/api.ts`
+- `apps/miniapp/src/pages/ChallengeDetail.tsx`
+- `apps/miniapp/src/index.css`
+
+Follow-up gaps:
+- The veto-only inspection currently applies to GitHub and Strava evidence only.
+- Cocoon only activates when `COCOON_API_URL` and `COCOON_MODEL` are configured for the backend; otherwise the inspection layer stays effectively inactive except for lightweight heuristics.

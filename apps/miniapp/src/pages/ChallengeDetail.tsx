@@ -134,6 +134,12 @@ function getRouteCopy(state: RouteState, actionLabel: string, canClaimRewards: b
   }
 }
 
+function getApiShortReason(error: unknown): string {
+  if (!error || typeof error !== "object") return "";
+  const shortReason = (error as { shortReason?: unknown }).shortReason;
+  return typeof shortReason === "string" ? shortReason : "";
+}
+
 export function ChallengeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -158,6 +164,7 @@ export function ChallengeDetail() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [verification, setVerification] = useState<VerificationResult | null>(null);
+  const [inspectionRefusal, setInspectionRefusal] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [refunding, setRefunding] = useState(false);
@@ -184,6 +191,7 @@ export function ChallengeDetail() {
     setUserContribution(null);
     setCreatorContribution(null);
     setVerification(null);
+    setInspectionRefusal("");
     setAuthStatus(null);
     setBackendProgress(
       prefetchedChallenge ? progressMap[String(prefetchedChallenge.index)] ?? prefetchedChallenge.claimedCount : 0,
@@ -275,6 +283,7 @@ export function ChallengeDetail() {
     const { app, action, count } = parseChallengeId(challenge.challengeId);
     setVerifying(true);
     setVerification(null);
+    setInspectionRefusal("");
     setError("");
 
     try {
@@ -282,11 +291,20 @@ export function ChallengeDetail() {
         app,
         action,
         count,
+        challengeIdx: idx,
         duolingoUsername: duolingoInput || undefined,
       });
       setVerification(result);
+      if (result.blocked && result.shortReason) {
+        setInspectionRefusal(result.shortReason);
+      }
     } catch (verifyError: any) {
-      setError(verifyError.message);
+      const shortReason = getApiShortReason(verifyError);
+      if (shortReason) {
+        setInspectionRefusal(shortReason);
+      } else {
+        setError(verifyError.message);
+      }
     } finally {
       setVerifying(false);
     }
@@ -296,6 +314,8 @@ export function ChallengeDetail() {
     if (!challenge || !userAddress) return;
 
     setClaiming(true);
+    setInspectionRefusal("");
+    setError("");
 
     try {
       const proof = await backendApi.signProof({
@@ -326,7 +346,12 @@ export function ChallengeDetail() {
       await loadChallenge({ forceRefresh: true, showBlockingLoader: false });
     } catch (claimError: any) {
       if (!claimError.message?.includes("Cancelled") && !claimError.message?.includes("canceled")) {
-        alert(claimError.message || "Claim failed.");
+        const shortReason = getApiShortReason(claimError);
+        if (shortReason) {
+          setInspectionRefusal(shortReason);
+        } else {
+          setError(claimError.message || "Claim failed.");
+        }
       }
     } finally {
       setClaiming(false);
@@ -784,6 +809,18 @@ export function ChallengeDetail() {
                 </button>
               )}
             </div>
+
+            {inspectionRefusal && (
+              <div className="inspection-note" role="alert">
+                <span className="material-symbols-outlined" aria-hidden="true">
+                  gpp_bad
+                </span>
+                <div>
+                  <strong>Blocked</strong>
+                  <p>{inspectionRefusal}</p>
+                </div>
+              </div>
+            )}
           </section>
 
           {(isOpen || (expired && !fullyReleased && isSponsor)) && (
@@ -886,8 +923,8 @@ export function ChallengeDetail() {
                   <div className="section-kicker">Verification</div>
                   <h2 className="section-title">Latest proof check</h2>
                 </div>
-                <span className={`state-pill ${verification.verified ? "is-ready" : "is-active"}`}>
-                  {verification.verified ? "Verified" : "Pending"}
+                <span className={`state-pill ${verification.blocked ? "is-expired" : verification.verified ? "is-ready" : "is-active"}`}>
+                  {verification.blocked ? "Blocked" : verification.verified ? "Verified" : "Pending"}
                 </span>
               </div>
 
@@ -902,6 +939,12 @@ export function ChallengeDetail() {
                   <span>Message</span>
                   <strong>{verification.message}</strong>
                 </div>
+                {verification.blocked && verification.shortReason && (
+                  <div className="verification-row">
+                    <span>AI veto</span>
+                    <strong>{verification.shortReason}</strong>
+                  </div>
+                )}
               </div>
             </section>
           )}

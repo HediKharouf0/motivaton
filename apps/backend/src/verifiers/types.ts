@@ -2,6 +2,7 @@ export interface VerifyRequest {
   app: string;
   action: string;
   count: number;
+  challengeIdx?: number;
   duolingoUsername?: string;
 }
 

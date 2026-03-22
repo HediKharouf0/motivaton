@@ -3,6 +3,7 @@ import { Address } from "@ton/core";
 import { getVerifier } from "../verifiers/index.js";
 import { signClaimAllProof, getVerifierPublicKey } from "../signer.js";
 import { getChallenge } from "../chain.js";
+import { inspectChallengeAchievement } from "../cocoon.js";
 
 export const verifyRouter = Router();
 
@@ -13,7 +14,7 @@ export const verifyRouter = Router();
  * Body: { app, action, count, duolingoUsername? }
  */
 verifyRouter.post("/check", async (req, res) => {
-  const { app, action, count, duolingoUsername } = req.body;
+  const { app, action, count, challengeIdx, duolingoUsername } = req.body;
 
   if (!app || !action || !count) {
     res.status(400).json({ error: "Missing required fields: app, action, count." });
@@ -26,8 +27,26 @@ verifyRouter.post("/check", async (req, res) => {
     return;
   }
 
-  const result = await verifier.verify({ app, action, count, duolingoUsername });
-  res.json(result);
+  const result = await verifier.verify({ app, action, count, challengeIdx, duolingoUsername });
+
+  let inspection = null;
+  if (result.verified && challengeIdx != null) {
+    try {
+      const challenge = await getChallenge(Number(challengeIdx));
+      if (challenge) {
+        inspection = await inspectChallengeAchievement(challenge);
+      }
+    } catch (error) {
+      console.error("[verify/check] Achievement inspection failed:", error);
+    }
+  }
+
+  res.json({
+    ...result,
+    blocked: Boolean(inspection),
+    shortReason: inspection?.shortReason,
+    inspection,
+  });
 });
 
 /**
@@ -96,7 +115,7 @@ verifyRouter.post("/sign-proof", async (req, res) => {
     count: challenge.totalCheckpoints,
     challengeIdx,
     duolingoUsername,
-  } as any);
+  });
 
   // Earned checkpoints = min(currentCount, totalCheckpoints)
   const earnedCount = Math.min(result.currentCount, challenge.totalCheckpoints);
@@ -122,6 +141,21 @@ verifyRouter.post("/sign-proof", async (req, res) => {
         earnedCount,
         alreadyClaimed: challenge.claimedCount,
         message: `Earned ${earnedCount}/${challenge.totalCheckpoints} checkpoints, ${challenge.claimedCount} already claimed.`,
+      },
+    });
+    return;
+  }
+
+  const inspection = await inspectChallengeAchievement(challenge);
+  if (inspection) {
+    res.status(403).json({
+      error: inspection.shortReason,
+      shortReason: inspection.shortReason,
+      details: {
+        ...result,
+        earnedCount,
+        alreadyClaimed: challenge.claimedCount,
+        inspection,
       },
     });
     return;
