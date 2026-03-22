@@ -1,4 +1,4 @@
-import { addChallengeGroup, getChallengeGroups } from "./store.js";
+import { addChallengeGroup } from "./store.js";
 import { getChallenge } from "./chain.js";
 import { sendTelegramMessage, formatGroupIntro } from "./telegram.js";
 
@@ -28,7 +28,42 @@ async function botApi(method: string, body: Record<string, unknown>): Promise<an
   return resp.json();
 }
 
-let _botId: number | null = null;
+// Groups waiting for a challenge number after /track
+const pendingTrack = new Map<string, { expiresAt: number }>();
+
+// Cleanup expired pending tracks every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of pendingTrack) {
+    if (val.expiresAt < now) pendingTrack.delete(key);
+  }
+}, 5 * 60 * 1000);
+
+async function linkChallengeToGroup(chatId: string, challengeIdx: number): Promise<void> {
+  const challenge = await getChallenge(challengeIdx);
+  if (!challenge) {
+    await botApi("sendMessage", {
+      chat_id: chatId,
+      text: `Challenge #${challengeIdx} not found.`,
+    });
+    return;
+  }
+
+  addChallengeGroup(challengeIdx, chatId);
+  const [app, action] = challenge.challengeId.split(":");
+  const endDate = new Date(challenge.endDate * 1000).toLocaleDateString();
+  const tonAmount = Number(challenge.totalDeposit) / 1e9;
+
+  await sendTelegramMessage(chatId, formatGroupIntro({
+    challengeIdx,
+    totalCheckpoints: challenge.totalCheckpoints,
+    app,
+    action,
+    endDate,
+    tonAmount,
+  }));
+  console.log(`[bot] Linked challenge #${challengeIdx} to group ${chatId}`);
+}
 
 export async function handleBotUpdate(update: any): Promise<void> {
   // Handle bot added to group
@@ -42,8 +77,7 @@ export async function handleBotUpdate(update: any): Promise<void> {
       console.log(`[bot] Added to group ${chatId}`);
       await botApi("sendMessage", {
         chat_id: chatId,
-        text: "I'm Motivaton. Use <code>/track 0</code> to start tracking a challenge in this group (replace 0 with the challenge number).",
-        parse_mode: "HTML",
+        text: "I'm Motivaton. Type /track to start tracking a challenge in this group.",
       });
     }
     return;
@@ -84,51 +118,50 @@ export async function handleBotUpdate(update: any): Promise<void> {
     return;
   }
 
-  // Handle /track <challengeIdx> in group chats
-  if ((chatType === "group" || chatType === "supergroup") && text.startsWith("/track")) {
-    const parts = text.split(/\s+/);
-    const rawIdx = parts[1];
-    const challengeIdx = rawIdx ? parseInt(rawIdx, 10) : NaN;
+  // Handle /track in group chats
+  if ((chatType === "group" || chatType === "supergroup") && (text === "/track" || text.startsWith("/track@"))) {
+    pendingTrack.set(chatId, { expiresAt: Date.now() + 60_000 });
+    await botApi("sendMessage", {
+      chat_id: chatId,
+      text: "Which challenge? Send the challenge number (e.g. <code>3</code>).",
+      parse_mode: "HTML",
+      reply_markup: {
+        force_reply: true,
+        selective: false,
+        input_field_placeholder: "Challenge number",
+      },
+    });
+    return;
+  }
 
-    if (isNaN(challengeIdx)) {
-      await botApi("sendMessage", {
-        chat_id: chatId,
-        text: "Usage: <code>/track 0</code> (replace 0 with the challenge number from the app)",
-        parse_mode: "HTML",
-      });
-      return;
-    }
-
-    try {
-      const challenge = await getChallenge(challengeIdx);
-      if (!challenge) {
-        await botApi("sendMessage", {
-          chat_id: chatId,
-          text: `Challenge #${challengeIdx} not found on-chain.`,
-        });
-        return;
+  // Handle /track <number> directly in group chats
+  if ((chatType === "group" || chatType === "supergroup") && text.startsWith("/track ")) {
+    const rawIdx = text.split(/\s+/)[1];
+    const challengeIdx = parseInt(rawIdx, 10);
+    if (!isNaN(challengeIdx)) {
+      try {
+        await linkChallengeToGroup(chatId, challengeIdx);
+      } catch (err) {
+        console.error(`[bot] Failed to link challenge #${challengeIdx}:`, err);
+        await botApi("sendMessage", { chat_id: chatId, text: "Failed to load that challenge. Try again." });
       }
+    } else {
+      await botApi("sendMessage", { chat_id: chatId, text: "That's not a valid number. Try again." });
+    }
+    return;
+  }
 
-      addChallengeGroup(challengeIdx, chatId);
-      const [app, action] = challenge.challengeId.split(":");
-      const endDate = new Date(challenge.endDate * 1000).toLocaleDateString();
-      const tonAmount = Number(challenge.totalDeposit) / 1e9;
-
-      await sendTelegramMessage(chatId, formatGroupIntro({
-        challengeIdx,
-        totalCheckpoints: challenge.totalCheckpoints,
-        app,
-        action,
-        endDate,
-        tonAmount,
-      }));
-      console.log(`[bot] Linked challenge #${challengeIdx} to group ${chatId}`);
-    } catch (err) {
-      console.error(`[bot] Failed to link challenge #${challengeIdx} to group:`, err);
-      await botApi("sendMessage", {
-        chat_id: chatId,
-        text: `Failed to load challenge #${challengeIdx}. Try again later.`,
-      });
+  // Handle reply with challenge number (after /track prompt)
+  if ((chatType === "group" || chatType === "supergroup") && pendingTrack.has(chatId)) {
+    const challengeIdx = parseInt(text, 10);
+    if (!isNaN(challengeIdx)) {
+      pendingTrack.delete(chatId);
+      try {
+        await linkChallengeToGroup(chatId, challengeIdx);
+      } catch (err) {
+        console.error(`[bot] Failed to link challenge #${challengeIdx}:`, err);
+        await botApi("sendMessage", { chat_id: chatId, text: "Failed to load that challenge. Try again with /track." });
+      }
     }
     return;
   }
@@ -159,7 +192,6 @@ export async function setupWebhook(): Promise<void> {
   const me = await botApi("getMe", {});
   if (me?.result?.username) {
     process.env.TELEGRAM_BOT_USERNAME = me.result.username;
-    _botId = me.result.id;
     console.log(`[bot] Bot username: @${me.result.username}`);
   }
 
@@ -169,7 +201,6 @@ export async function setupWebhook(): Promise<void> {
     ],
   });
 
-  // Group-specific commands
   await botApi("setMyCommands", {
     commands: [
       { command: "track", description: "Track a challenge in this group" },
