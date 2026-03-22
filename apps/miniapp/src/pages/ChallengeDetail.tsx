@@ -963,7 +963,7 @@ export function ChallengeDetail() {
             <h2 className="section-title">Track in a group</h2>
             <div className="next-copy">
               <p className="support-copy tight">
-                Add the bot to a Telegram group to post live progress updates, milestones, and trash talk.
+                Add the bot to a group, then type <strong>/track {idx}</strong> to start live updates, milestones, and trash talk.
               </p>
             </div>
             <div className="next-actions">
@@ -971,8 +971,8 @@ export function ChallengeDetail() {
                 className="secondary-button"
                 onClick={() => {
                   const tg = (window as any).Telegram?.WebApp;
-                  const botUsername = import.meta.env.VITE_BOT_USERNAME || "motivaton_bot";
-                  const url = `https://t.me/${botUsername}?startgroup=challenge_${idx}`;
+                  const botUsername = import.meta.env.VITE_BOT_USERNAME || "MotivaTON_bot";
+                  const url = `https://t.me/${botUsername}?startgroup=true`;
                   if (tg?.openTelegramLink) {
                     tg.openTelegramLink(url);
                   } else {
@@ -981,7 +981,7 @@ export function ChallengeDetail() {
                 }}
               >
                 <span className="material-symbols-outlined" aria-hidden="true">group_add</span>
-                <span>Share to group</span>
+                <span>Add bot to group</span>
               </button>
             </div>
           </section>
