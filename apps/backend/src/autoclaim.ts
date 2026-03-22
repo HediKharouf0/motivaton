@@ -1,4 +1,4 @@
-import { beginCell, Address, toNano } from "@ton/core";
+import { beginCell, Address, toNano, internal, SendMode } from "@ton/core";
 import { TonClient, WalletContractV5R1 } from "@ton/ton";
 import { mnemonicToPrivateKey } from "@ton/crypto";
 import { getAllChallenges } from "./chain.js";
@@ -84,22 +84,14 @@ export async function autoClaimJob() {
       await walletContract.sendTransfer({
         secretKey: kp.secretKey,
         seqno,
+        sendMode: SendMode.PAY_GAS_SEPARATELY,
         messages: [
-          {
-            info: {
-              type: "internal",
-              dest: Address.parse(contractAddress),
-              value: { coins: toNano("0.05") },
-              bounce: true,
-              ihrDisabled: true,
-              bounced: false,
-              ihrFee: 0n,
-              forwardFee: 0n,
-              createdAt: 0,
-              createdLt: 0n,
-            },
+          internal({
+            to: Address.parse(contractAddress),
+            value: toNano("0.05"),
+            bounce: true,
             body,
-          } as any,
+          }),
         ],
       });
 
