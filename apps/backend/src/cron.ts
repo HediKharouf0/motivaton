@@ -312,7 +312,7 @@ async function minuteJob() {
 }
 
 export function startCronJobs() {
-  cron.schedule("* * * * *", () => {
+  cron.schedule("0 * * * *", () => {
     minuteJob().catch((err) => console.error("[cron] Minute job failed:", err));
   });
 
