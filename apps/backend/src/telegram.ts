@@ -8,7 +8,7 @@ function getOpenAppMarkup(): object | undefined {
   const botUsername = process.env.TELEGRAM_BOT_USERNAME;
   if (!botUsername) return undefined;
   return {
-    inline_keyboard: [[{ text: "Open Motivaton", url: `https://t.me/${botUsername}/app` }]],
+    inline_keyboard: [[{ text: "Open Motivaton", url: `https://t.me/${botUsername}/MotivaTON` }]],
   };
 }
 
