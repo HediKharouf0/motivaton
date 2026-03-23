@@ -8,6 +8,10 @@ export interface EventEntry {
   count: number;
 }
 
+function getContractAddress(): string {
+  return process.env.CONTRACT_ADDRESS || "";
+}
+
 function getDbPath(): string {
   return process.env.DATABASE_PATH || resolve(import.meta.dirname, "../data/motivaton.db");
 }
@@ -43,28 +47,33 @@ function getDb(): Database.Database {
     );
 
     CREATE TABLE IF NOT EXISTS challenge_events (
+      contract_address TEXT NOT NULL,
       challenge_idx INTEGER NOT NULL,
       event_id TEXT NOT NULL,
       count INTEGER NOT NULL DEFAULT 1,
-      PRIMARY KEY (challenge_idx, event_id)
+      PRIMARY KEY (contract_address, challenge_idx, event_id)
     );
 
     CREATE TABLE IF NOT EXISTS challenge_claims (
-      challenge_idx INTEGER PRIMARY KEY,
-      claimed_at INTEGER NOT NULL
+      contract_address TEXT NOT NULL,
+      challenge_idx INTEGER NOT NULL,
+      claimed_at INTEGER NOT NULL,
+      PRIMARY KEY (contract_address, challenge_idx)
     );
 
     CREATE TABLE IF NOT EXISTS challenge_groups (
+      contract_address TEXT NOT NULL,
       challenge_idx INTEGER NOT NULL,
       chat_id TEXT NOT NULL,
-      PRIMARY KEY (challenge_idx, chat_id)
+      PRIMARY KEY (contract_address, challenge_idx, chat_id)
     );
 
     CREATE TABLE IF NOT EXISTS challenge_notifications (
+      contract_address TEXT NOT NULL,
       challenge_idx INTEGER NOT NULL,
       notification_type TEXT NOT NULL,
       sent_at INTEGER NOT NULL,
-      PRIMARY KEY (challenge_idx, notification_type)
+      PRIMARY KEY (contract_address, challenge_idx, notification_type)
     );
   `);
 
@@ -88,6 +97,43 @@ function getDb(): Database.Database {
     db.exec("ALTER TABLE accounts ADD COLUMN strava_refresh_token TEXT");
     db.exec("ALTER TABLE accounts ADD COLUMN strava_expires_at INTEGER");
     db.exec("ALTER TABLE accounts ADD COLUMN strava_athlete_id INTEGER");
+  }
+
+  // Migration: add contract_address to challenge tables (stale data from old contracts is dropped)
+  if (!eventCols.some((c) => c.name === "contract_address")) {
+    console.log("[store] Migrating challenge tables to include contract_address — dropping stale data");
+    db.exec(`
+      DROP TABLE IF EXISTS challenge_events;
+      CREATE TABLE challenge_events (
+        contract_address TEXT NOT NULL,
+        challenge_idx INTEGER NOT NULL,
+        event_id TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (contract_address, challenge_idx, event_id)
+      );
+      DROP TABLE IF EXISTS challenge_claims;
+      CREATE TABLE challenge_claims (
+        contract_address TEXT NOT NULL,
+        challenge_idx INTEGER NOT NULL,
+        claimed_at INTEGER NOT NULL,
+        PRIMARY KEY (contract_address, challenge_idx)
+      );
+      DROP TABLE IF EXISTS challenge_groups;
+      CREATE TABLE challenge_groups (
+        contract_address TEXT NOT NULL,
+        challenge_idx INTEGER NOT NULL,
+        chat_id TEXT NOT NULL,
+        PRIMARY KEY (contract_address, challenge_idx, chat_id)
+      );
+      DROP TABLE IF EXISTS challenge_notifications;
+      CREATE TABLE challenge_notifications (
+        contract_address TEXT NOT NULL,
+        challenge_idx INTEGER NOT NULL,
+        notification_type TEXT NOT NULL,
+        sent_at INTEGER NOT NULL,
+        PRIMARY KEY (contract_address, challenge_idx, notification_type)
+      );
+    `);
   }
 
   return db;
@@ -238,23 +284,24 @@ export function getAllAccounts(): Record<string, AppCredentials> {
 
 export function addChallengeEvents(challengeIdx: number, entries: EventEntry[]): EventEntry[] {
   if (entries.length === 0) return [];
+  const addr = getContractAddress();
 
   const txn = db().transaction(() => {
     const ids = entries.map((e) => e.id);
     const placeholders = ids.map(() => "?").join(",");
     const existingRows = db().prepare(
-      `SELECT event_id FROM challenge_events WHERE challenge_idx = ? AND event_id IN (${placeholders})`,
-    ).all(challengeIdx, ...ids) as { event_id: string }[];
+      `SELECT event_id FROM challenge_events WHERE contract_address = ? AND challenge_idx = ? AND event_id IN (${placeholders})`,
+    ).all(addr, challengeIdx, ...ids) as { event_id: string }[];
 
     const existingSet = new Set(existingRows.map((r) => r.event_id));
     const newEntries = entries.filter((e) => !existingSet.has(e.id));
     if (newEntries.length === 0) return [];
 
     const insert = db().prepare(
-      "INSERT OR IGNORE INTO challenge_events (challenge_idx, event_id, count) VALUES (?, ?, ?)",
+      "INSERT OR IGNORE INTO challenge_events (contract_address, challenge_idx, event_id, count) VALUES (?, ?, ?, ?)",
     );
     for (const e of newEntries) {
-      insert.run(challengeIdx, e.id, e.count);
+      insert.run(addr, challengeIdx, e.id, e.count);
     }
 
     return newEntries;
@@ -264,16 +311,19 @@ export function addChallengeEvents(challengeIdx: number, entries: EventEntry[]):
 }
 
 export function getChallengeProgress(challengeIdx: number): number {
-  const row = db().prepare("SELECT COALESCE(SUM(count), 0) as total FROM challenge_events WHERE challenge_idx = ?").get(challengeIdx) as { total: number | bigint };
+  const addr = getContractAddress();
+  const row = db().prepare("SELECT COALESCE(SUM(count), 0) as total FROM challenge_events WHERE contract_address = ? AND challenge_idx = ?").get(addr, challengeIdx) as { total: number | bigint };
   return Number(row.total);
 }
 
 export function getChallengeEvents(challengeIdx: number): EventEntry[] {
-  return db().prepare("SELECT event_id as id, count FROM challenge_events WHERE challenge_idx = ?").all(challengeIdx) as EventEntry[];
+  const addr = getContractAddress();
+  return db().prepare("SELECT event_id as id, count FROM challenge_events WHERE contract_address = ? AND challenge_idx = ?").all(addr, challengeIdx) as EventEntry[];
 }
 
 export function getAllProgress(): Record<string, number> {
-  const rows = db().prepare("SELECT challenge_idx, COALESCE(SUM(count), 0) as total FROM challenge_events GROUP BY challenge_idx").all() as { challenge_idx: number; total: number }[];
+  const addr = getContractAddress();
+  const rows = db().prepare("SELECT challenge_idx, COALESCE(SUM(count), 0) as total FROM challenge_events WHERE contract_address = ? GROUP BY challenge_idx").all(addr) as { challenge_idx: number; total: number }[];
   const result: Record<string, number> = {};
   for (const row of rows) {
     result[String(row.challenge_idx)] = row.total;
@@ -284,20 +334,24 @@ export function getAllProgress(): Record<string, number> {
 // -- Challenge claims --
 
 export function markChallengeClaimed(challengeIdx: number) {
-  db().prepare("INSERT OR IGNORE INTO challenge_claims (challenge_idx, claimed_at) VALUES (?, ?)").run(challengeIdx, Date.now());
+  const addr = getContractAddress();
+  db().prepare("INSERT OR IGNORE INTO challenge_claims (contract_address, challenge_idx, claimed_at) VALUES (?, ?, ?)").run(addr, challengeIdx, Date.now());
 }
 
 export function clearChallengeClaimed(challengeIdx: number) {
-  db().prepare("DELETE FROM challenge_claims WHERE challenge_idx = ?").run(challengeIdx);
+  const addr = getContractAddress();
+  db().prepare("DELETE FROM challenge_claims WHERE contract_address = ? AND challenge_idx = ?").run(addr, challengeIdx);
 }
 
 export function isChallengeClaimed(challengeIdx: number): boolean {
-  const row = db().prepare("SELECT 1 FROM challenge_claims WHERE challenge_idx = ?").get(challengeIdx);
+  const addr = getContractAddress();
+  const row = db().prepare("SELECT 1 FROM challenge_claims WHERE contract_address = ? AND challenge_idx = ?").get(addr, challengeIdx);
   return row != null;
 }
 
 export function getAllClaimed(): Record<string, boolean> {
-  const rows = db().prepare("SELECT challenge_idx FROM challenge_claims").all() as { challenge_idx: number }[];
+  const addr = getContractAddress();
+  const rows = db().prepare("SELECT challenge_idx FROM challenge_claims WHERE contract_address = ?").all(addr) as { challenge_idx: number }[];
   const result: Record<string, boolean> = {};
   for (const row of rows) {
     result[String(row.challenge_idx)] = true;
@@ -336,21 +390,25 @@ export function getTelegramChatIdByBeneficiary(beneficiaryRaw: string): string |
 // -- Challenge group chats --
 
 export function addChallengeGroup(challengeIdx: number, chatId: string) {
-  db().prepare("INSERT OR IGNORE INTO challenge_groups (challenge_idx, chat_id) VALUES (?, ?)").run(challengeIdx, chatId);
+  const addr = getContractAddress();
+  db().prepare("INSERT OR IGNORE INTO challenge_groups (contract_address, challenge_idx, chat_id) VALUES (?, ?, ?)").run(addr, challengeIdx, chatId);
 }
 
 export function getChallengeGroups(challengeIdx: number): string[] {
-  const rows = db().prepare("SELECT chat_id FROM challenge_groups WHERE challenge_idx = ?").all(challengeIdx) as { chat_id: string }[];
+  const addr = getContractAddress();
+  const rows = db().prepare("SELECT chat_id FROM challenge_groups WHERE contract_address = ? AND challenge_idx = ?").all(addr, challengeIdx) as { chat_id: string }[];
   return rows.map((r) => r.chat_id);
 }
 
 // -- Challenge notification tracking --
 
 export function hasNotificationBeenSent(challengeIdx: number, type: string): boolean {
-  const row = db().prepare("SELECT 1 FROM challenge_notifications WHERE challenge_idx = ? AND notification_type = ?").get(challengeIdx, type);
+  const addr = getContractAddress();
+  const row = db().prepare("SELECT 1 FROM challenge_notifications WHERE contract_address = ? AND challenge_idx = ? AND notification_type = ?").get(addr, challengeIdx, type);
   return row != null;
 }
 
 export function markNotificationSent(challengeIdx: number, type: string) {
-  db().prepare("INSERT OR IGNORE INTO challenge_notifications (challenge_idx, notification_type, sent_at) VALUES (?, ?, ?)").run(challengeIdx, type, Date.now());
+  const addr = getContractAddress();
+  db().prepare("INSERT OR IGNORE INTO challenge_notifications (contract_address, challenge_idx, notification_type, sent_at) VALUES (?, ?, ?, ?)").run(addr, challengeIdx, type, Date.now());
 }

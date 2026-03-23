@@ -142,3 +142,8 @@ export async function verifyChallengeFromLiveEvents(
       };
   }
 }
+
+export async function getLiveChallengeProgress(challenge: OnChainChallenge): Promise<number> {
+  const result = await verifyChallengeFromLiveEvents(challenge, challenge.totalCheckpoints);
+  return result.currentCount;
+}
