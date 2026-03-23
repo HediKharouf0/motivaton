@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getChallengeProgress, getChallengeEvents, getAllProgress, isChallengeClaimed, getAllClaimed, clearChallengeClaimed, addChallengeGroup } from "../store.js";
 import { getAllChallenges, getChallenge } from "../chain.js";
+import { sendTelegramMessage, formatGroupIntro } from "../telegram.js";
 import { progressJob } from "../cron.js";
 import { getLiveChallengeProgress } from "../live-verification.js";
 import { autoClaimJob } from "../autoclaim.js";
@@ -84,15 +85,39 @@ debugRouter.get("/autoclaim", async (_req, res) => {
   }
 });
 
-debugRouter.post("/track-group", (req, res) => {
+debugRouter.post("/track-group", async (req, res) => {
   const { challengeIdx, chatId } = req.body;
   if (typeof challengeIdx !== "number" || typeof chatId !== "string") {
     res.status(400).json({ error: "challengeIdx (number) and chatId (string) required" });
     return;
   }
-  addChallengeGroup(challengeIdx, chatId);
-  console.log(`[api] Auto-tracked challenge #${challengeIdx} in group ${chatId}`);
-  res.json({ ok: true, challengeIdx, chatId });
+  try {
+    const challenge = await getChallenge(challengeIdx);
+    if (!challenge) {
+      res.status(404).json({ error: `Challenge #${challengeIdx} not found` });
+      return;
+    }
+
+    addChallengeGroup(challengeIdx, chatId);
+
+    const [app, action] = challenge.challengeId.split(":");
+    const endDate = new Date(challenge.endDate * 1000).toLocaleDateString();
+    const tonAmount = Number(challenge.totalDeposit) / 1e9;
+
+    await sendTelegramMessage(chatId, formatGroupIntro({
+      challengeIdx,
+      totalCheckpoints: challenge.totalCheckpoints,
+      app,
+      action,
+      endDate,
+      tonAmount,
+    }));
+
+    console.log(`[api] Auto-tracked challenge #${challengeIdx} in group ${chatId}`);
+    res.json({ ok: true, challengeIdx, chatId });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 debugRouter.get("/health", (_req, res) => {
