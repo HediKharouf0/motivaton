@@ -4,11 +4,12 @@ function getBotToken(): string | null {
   return process.env.TELEGRAM_BOT_TOKEN || null;
 }
 
-function getOpenAppMarkup(): object {
+function getOpenAppMarkup(chatId?: string): object {
   const botUsername = process.env.TELEGRAM_BOT_USERNAME;
   if (!botUsername) return {};
+  const param = chatId ? `g${chatId.replace("-", "")}` : "";
   return {
-    inline_keyboard: [[{ text: "Open Motivaton", url: `https://t.me/${botUsername}?startapp` }]],
+    inline_keyboard: [[{ text: "Open Motivaton", url: `https://t.me/${botUsername}?startapp=${param}` }]],
   };
 }
 
@@ -45,8 +46,8 @@ export async function sendTelegramMessage(chatId: string, text: string, parseMod
 }
 
 export async function sendToGroups(chatIds: string[], text: string): Promise<void> {
-  const markup = getOpenAppMarkup();
   for (const chatId of chatIds) {
+    const markup = getOpenAppMarkup(chatId);
     await sendTelegramMessage(chatId, text, "HTML", markup);
   }
 }

@@ -179,4 +179,11 @@ export const backendApi = {
       body: JSON.stringify({ challengeIdx, chatId }),
     });
   },
+
+  logEvent(data: Record<string, unknown>) {
+    return request<{ ok: boolean }>("/debug-tg", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
 };

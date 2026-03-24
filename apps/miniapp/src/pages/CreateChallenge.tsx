@@ -34,23 +34,9 @@ export function CreateChallenge() {
   const userAddress = useTonAddress();
   const { storeChallenge } = useChallengeCache();
 
-  // Telegram group chat ID — present when the app is opened from a group inline button
+  // Telegram group chat ID — cached in sessionStorage from the startapp deep link
   const telegramChatId = useMemo(() => {
-    try {
-      const tg = (window as any).Telegram?.WebApp;
-      const initData = tg?.initDataUnsafe;
-      // Log to backend for debugging (no sensitive data)
-      fetch(`${import.meta.env.VITE_API_URL || "/api"}/debug-tg`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ initDataUnsafe: initData, location: window.location.href }),
-      }).catch(() => {});
-      const chat = initData?.chat;
-      if (chat && (chat.type === "group" || chat.type === "supergroup")) {
-        return String(chat.id);
-      }
-    } catch {}
-    return null;
+    return sessionStorage.getItem("motivaton_group_chat_id");
   }, []);
 
   const [app, setApp] = useState<App>(App.Github);
@@ -168,14 +154,9 @@ export function CreateChallenge() {
       storeChallenge(indexedChallenge);
 
       // Auto-track in the Telegram group this was opened from
-      console.log("[create] telegramChatId:", telegramChatId);
       if (telegramChatId) {
-        console.log("[create] Auto-tracking challenge", indexedChallenge.index, "in group", telegramChatId);
-        backendApi.trackChallengeInGroup(indexedChallenge.index, telegramChatId)
-          .then(() => console.log("[create] Auto-track succeeded"))
-          .catch((err) => console.warn("[create] Failed to auto-track in group:", err));
-      } else {
-        console.log("[create] Skipping auto-track: no group chat ID");
+        backendApi.logEvent({ event: "challenge_created_from_group", challengeIdx: indexedChallenge.index, groupChatId: telegramChatId }).catch(() => {});
+        backendApi.trackChallengeInGroup(indexedChallenge.index, telegramChatId).catch(() => {});
       }
 
       navigate(`/challenge/${indexedChallenge.index}`, {
