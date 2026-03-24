@@ -4,11 +4,11 @@ function getBotToken(): string | null {
   return process.env.TELEGRAM_BOT_TOKEN || null;
 }
 
-const APP_URL = "https://motivaton-backend-production.up.railway.app";
-
 function getOpenAppMarkup(): object {
+  const botUsername = process.env.TELEGRAM_BOT_USERNAME;
+  if (!botUsername) return {};
   return {
-    inline_keyboard: [[{ text: "Open Motivaton", web_app: { url: APP_URL } }]],
+    inline_keyboard: [[{ text: "Open Motivaton", url: `https://t.me/${botUsername}?startapp` }]],
   };
 }
 
